@@ -20,18 +20,43 @@ function handleMessage(msg) {
   const chatId = msg.chat.id;
   const text = msg.text ? msg.text.trim() : "";
   const auth = isUserAuthorized(chatId);
+  const pinMatch = text.match(/^\/pin\s+(\d{6})$/);
+  
+  if (text === "/start") {
+    handleStartCommand(msg, auth);
+    return;
+  }
   
   // Jeśli użytkownik nie jest zautoryzowany
   if (!auth.authorized) {
-    if (text.startsWith("/pin ")) {
-      const pin = text.split(" ")[1];
-      if (authorizeUserWithPin(chatId, msg.from.username, pin)) {
-        sendTelegramMessage(chatId, "✅ Autoryzacja pomyślna! Twoje konto zostało powiązane. Możesz teraz rejestrować czas pracy.", getMainKeyboard());
+    if (auth.status === "Zablokowany") {
+      sendTelegramMessage(
+        chatId,
+        "🚫 Twoje konto jest zablokowane.\nSkontaktuj się z Pracodawcą aby odblokować konto."
+      );
+    } else if (pinMatch) {
+      const result = authorizeUserWithPin(chatId, pinMatch[1]);
+      if (result.success) {
+        sendTelegramMessage(chatId, "✅ Autoryzacja pomyślna! Możesz teraz rejestrować czas pracy.", getMainKeyboard());
+      } else if (result.blocked) {
+        sendTelegramMessage(
+          chatId,
+          "🚫 ZOSTAŁEŚ ZABLOKOWANY\nPrzekroczyłeś limit prób podania PINu.\nSkontaktuj się z Pracodawcą aby odblokować konto."
+        );
       } else {
-        sendTelegramMessage(chatId, "❌ Niepoprawny PIN. Spróbuj ponownie wpisując: /pin [KOD_PIN]");
+        sendTelegramMessage(
+          chatId,
+          `❌ PIN nieprawidłowy\nPozostało Ci ${result.attemptsLeft} prób\nPodaj poprawny PIN:\n/pin 123456`
+        );
       }
+    } else if (text === "📌 Podaj PIN") {
+      sendTelegramMessage(chatId, "Podaj PIN w formacie:\n/pin 123456");
     } else {
-      sendTelegramMessage(chatId, "🔒 **Brak dostępu.** Aby korzystać z bota, musisz podać kod PIN firmy.\nWpisz komendę: `/pin KOD` (np. `/pin 1234`)");
+      sendTelegramMessage(
+        chatId,
+        "🔐 INSTRUKCJA LOGOWANIA\nAby się zalogować, kliknij przycisk poniżej i podaj PIN, który otrzymałeś od Pracodawcy.",
+        getPinKeyboard()
+      );
     }
     return;
   }
@@ -62,6 +87,81 @@ function getMainKeyboard() {
     ],
     resize_keyboard: true
   };
+}
+
+function getPinKeyboard() {
+  return {
+    keyboard: [[{ text: "📌 Podaj PIN" }]],
+    resize_keyboard: true
+  };
+}
+
+function handleStartCommand(msg, auth) {
+  const chatId = msg.chat.id;
+  const fullName = [msg.from.first_name || "", msg.from.last_name || ""].join(" ").trim();
+  
+  if (auth.status === "Zablokowany") {
+    sendTelegramMessage(
+      chatId,
+      "🚫 Twoje konto jest zablokowane.\nSkontaktuj się z Pracodawcą aby odblokować konto."
+    );
+    return;
+  }
+  
+  if (!auth.employeeId) {
+    const employee = registerNewEmployee(chatId, fullName);
+    notifyEmployersAboutNewEmployee(employee, chatId);
+    
+    sendTelegramMessage(
+      chatId,
+      "🔐 INSTRUKCJA LOGOWANIA\nWitaj! Twoje konto zostało dodane do systemu.\n\nAby się zalogować, kliknij przycisk poniżej i podaj PIN, który otrzymałeś od Pracodawcy.",
+      getPinKeyboard()
+    );
+    return;
+  }
+  
+  if (auth.authorized) {
+    sendTelegramMessage(chatId, "✅ Jesteś już autoryzowany. Wybierz opcję z menu poniżej:", getMainKeyboard());
+    return;
+  }
+  
+  sendTelegramMessage(
+    chatId,
+    "🔐 Twoje konto oczekuje na PIN od Pracodawcy.\nKliknij przycisk „📌 Podaj PIN” i dokończ rejestrację.",
+    getPinKeyboard()
+  );
+}
+
+function notifyEmployersAboutNewEmployee(employee, employeeChatId) {
+  const employerIds = getEmployerTelegramIds();
+  if (!employerIds.length) {
+    Logger.log("⚠️ Brak skonfigurowanych ID pracodawców.");
+    return;
+  }
+  
+  const employeeName = employee.fullName || "Nie podane";
+  const message = [
+    "🆕 NOWY PRACOWNIK",
+    `Imię i nazwisko: ${employeeName}`,
+    `Telegram ID: ${employeeChatId}`,
+    `PIN: ${employee.pin}`,
+    "",
+    "Wiadomość do przekazania pracownikowi:",
+    `Cześć ${employeeName}!`,
+    "Aby zakończyć rejestrację w bocie, wpisz otrzymany PIN komendą:",
+    `/pin ${employee.pin}`
+  ].join("\n");
+  
+  employerIds.forEach(employerChatId => sendTelegramMessage(employerChatId, message));
+}
+
+function handleCallbackQuery(callbackQuery) {
+  const chatId = callbackQuery.message.chat.id;
+  const data = callbackQuery.data || "";
+  
+  if (data === "PIN_INPUT") {
+    sendTelegramMessage(chatId, "Podaj PIN w formacie:\n/pin 123456");
+  }
 }
 
 function sendTelegramMessage(chatId, text, replyMarkup = null) {

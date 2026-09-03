@@ -10,6 +10,7 @@ function onOpen() {
     .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
     .addSeparator()
     .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
+    .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
@@ -62,6 +63,7 @@ function setWebhookDeploymentId() {
             break;
           }
         }
+
       }
     } catch (err) {
       Logger.log('Uwaga: Nie udało się zaktualizować arkusza: ' + err.toString());
@@ -75,6 +77,58 @@ function setWebhookDeploymentId() {
     
     Logger.log('✅ Webhook Deployment URL został zapisany: ' + deploymentUrl);
   }
+}
+
+function setEmployerTelegramIds() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    '👔 Konfiguracja Telegram ID Pracodawców\n\n' +
+    'Podaj jeden lub wiele ID rozdzielonych przecinkami.\n' +
+    'Przykład: 123456789,987654321',
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    return;
+  }
+  
+  const raw = response.getResponseText().trim();
+  const ids = raw
+    .split(',')
+    .map(item => item.trim())
+    .filter(item => item !== '');
+  
+  if (!ids.length) {
+    ui.alert('❌ Nie podano żadnego ID.');
+    return;
+  }
+  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const data = sheet.getDataRange().getValues();
+  let rowIndex = -1;
+  
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][0] || '').toString().trim() === 'PRACODAWCY_TELEGRAM_IDS') {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  
+  if (rowIndex === -1) {
+    rowIndex = sheet.getLastRow() + 1;
+    sheet.getRange(rowIndex, 1, 1, 3).setValues([[
+      'PRACODAWCY_TELEGRAM_IDS',
+      '',
+      'ID Telegram pracodawców (kolumny B..N)'
+    ]]);
+  }
+  
+  const clearWidth = Math.max(sheet.getLastColumn() - 1, ids.length, 1);
+  sheet.getRange(rowIndex, 2, 1, clearWidth).clearContent();
+  sheet.getRange(rowIndex, 2, 1, ids.length).setValues([ids]);
+  
+  ui.alert(`✅ Zapisano ${ids.length} ID pracodawców.`);
 }
 
 /**
@@ -108,7 +162,8 @@ function setupDatabaseStructure() {
         ['NORMA_ETAT_UOP', '8', 'Standardowa norma dobowa dla UoP (godziny)'],
         ['NORMA_OZN_UOP', '7', 'Norma dobowa dla pracowników OzN (stopień umiarkowany/znaczny)'],
         ['MIESIAC_GRAFIKU', '2026-10', 'Aktualnie planowany miesiąc grafiku (YYYY-MM)'],
-        ['WEBHOOK_URL', '', 'URL wdrożenia Apps Script do webhook\'a Telegrama']
+        ['WEBHOOK_URL', '', 'URL wdrożenia Apps Script do webhook\'a Telegrama'],
+        ['PRACODAWCY_TELEGRAM_IDS', '', 'ID Telegram pracodawców (kolumny B..N)']
       ]
     },
     'Pracownicy': {
@@ -120,14 +175,16 @@ function setupDatabaseStructure() {
         'Forma_Zatrudnienia', 
         'Wymiar_Etatu',       
         'Stopien_OZN',        
-        'Status_Autoryzacji', 
+        'Status_Autoryzacji', // OczekujeNaPIN / Autoryzowany / Zablokowany
         'Staz_Pracy_Lata',    
-        'Roczny_Limit_Urlopu' 
+        'Licz_błędy',         // Licznik prób PIN
+        'PIN',                // Jednorazowy PIN rejestracyjny
+        'Roczny_Limit_Urlopu'
       ],
       initialData: [
-        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', true, 12, 26],
-        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', false, 4, 30],
-        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', false, 2, 0]
+        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
+        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30],
+        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0]
       ]
     },
     'Grafik': {
