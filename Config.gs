@@ -1,8 +1,9 @@
 /**
  * Ustawienia globalne projektu
  * 
- * ⚠️ WAŻNE: Token Telegrama jest przechowywany w Properties Service (zmienne sekretne)
+ * ⚠️ WAŻNE: Token Telegrama i Webhook URL są przechowywane w Properties Service (zmienne sekretne)
  * Aby ustawić token po raz pierwszy, uruchom: initializeSecrets()
+ * Aby ustawić webhook URL, uruchom: setWebhookDeploymentId()
  */
 const CONFIG = {
   // Token pobierany dynamicznie z Properties Service
@@ -10,7 +11,10 @@ const CONFIG = {
     return PropertiesService.getScriptProperties().getProperty('TELEGRAM_TOKEN') || 'NOT_SET';
   },
   
-  WEBHOOK_URL: 'TUTAJ_WSTAWDZ_URL_WDROZENIA_APPS_SCRIPT',
+  // Webhook URL pobierany dynamicznie z Properties Service
+  get WEBHOOK_URL() {
+    return PropertiesService.getScriptProperties().getProperty('WEBHOOK_DEPLOYMENT_URL') || 'NOT_SET';
+  },
   
   // Nazwy zakładek w Arkuszu Google
   SHEETS: {
@@ -90,13 +94,31 @@ function getTelegramToken() {
 }
 
 /**
+ * Pobiera Webhook URL z Properties Service
+ * Jeśli nie jest ustawiony, wyświetla komunikat błędu
+ */
+function getWebhookUrl() {
+  const url = CONFIG.WEBHOOK_URL;
+  
+  if (url === 'NOT_SET') {
+    Logger.log('⚠️ UWAGA: Webhook URL nie jest ustawiony!');
+    Logger.log('Uruchom funkcję: setWebhookDeploymentId()');
+    throw new Error('Webhook URL is not configured. Run setWebhookDeploymentId() first.');
+  }
+  
+  return url;
+}
+
+/**
  * Ustawia Webhook dla Bota Telegram (Uruchomić jednorazowo)
  */
 function setupTelegramWebhook() {
   try {
     const token = getTelegramToken();
-    const url = `https://api.telegram.org/bot${token}/setWebhook?url=${CONFIG.WEBHOOK_URL}`;
-    const response = UrlFetchApp.fetch(url);
+    const webhookUrl = getWebhookUrl();
+    
+    const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     const result = JSON.parse(response.getContentText());
     
     if (result.ok) {
@@ -118,17 +140,21 @@ function setupTelegramWebhook() {
 function checkSecretsStatus() {
   const properties = PropertiesService.getScriptProperties();
   const token = properties.getProperty('TELEGRAM_TOKEN');
+  const webhookUrl = properties.getProperty('WEBHOOK_DEPLOYMENT_URL');
   
-  const status = token ? '✅ Ustawiony' : '❌ Nie ustawiony';
+  const tokenStatus = token ? '✅ Ustawiony' : '❌ Nie ustawiony';
+  const webhookStatus = webhookUrl ? '✅ Ustawiony' : '❌ Nie ustawiony';
+  
   const message = `
 🔐 Status bezpieczeństwa:
-Token Telegrama: ${status}
+Token Telegrama: ${tokenStatus}
+Webhook URL: ${webhookStatus}
 
-Aby ustawić/zmienić token:
-1. Uruchom: initializeSecrets()
-2. Wklej token w wyskakującym oknie
+Aby ustawić/zmienić:
+1. Token: ⚙️ System Kadrowy → 🔐 Inicjalizuj sekretne dane
+2. URL: ⚙️ System Kadrowy → 📡 Ustaw Deployment ID dla Webhook'a
   `;
   
   SpreadsheetApp.getUi().alert(message);
-  Logger.log('Token status:', status);
+  Logger.log('Config status - Token:', tokenStatus, ', Webhook:', webhookStatus);
 }
