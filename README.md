@@ -43,12 +43,17 @@ clasp push
 ```
 
 #### Automatyczny Deploy (GitHub Actions):
-1. Generuj `CLASP_CREDS`:
+1. Zaloguj `clasp` lokalnie:
    ```bash
-   clasp login --creds
+   clasp login
+   ```
+   Jeśli używasz własnego klienta OAuth, najpierw wykonaj pełne logowanie, np.:
+   ```bash
+   clasp login --creds client_secret.json
    ```
 2. Dodaj do GitHub Secrets:
-   - `CLASP_CREDS` - zawartość `~/.clasprc.json`
+   - `CLASP_CREDS` - pełną zawartość zalogowanego pliku `.clasprc.json` wygenerowanego po `clasp login` (surowy JSON albo base64)
+   - nie wklejaj samego pliku `client_secret.json` / konfiguracji OAuth — to nie wystarczy do deployu w CI
 3. Push do `main` → automatyczny deploy na Apps Script
 
 ## 📁 Struktura Plików
