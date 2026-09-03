@@ -65,16 +65,22 @@ function getMainKeyboard() {
 }
 
 function sendTelegramMessage(chatId, text, replyMarkup = null) {
-  const payload = {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'Markdown'
-  };
-  if (replyMarkup) payload.reply_markup = JSON.stringify(replyMarkup);
-  
-  UrlFetchApp.fetch(`https://api.telegram.org/bot${CONFIG.TELEGRAM_TOKEN}/sendMessage`, {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify(payload)
-  });
+  try {
+    const token = getTelegramToken(); // Pobierz token z Properties Service
+    
+    const payload = {
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'Markdown'
+    };
+    if (replyMarkup) payload.reply_markup = JSON.stringify(replyMarkup);
+    
+    UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload)
+    });
+  } catch (err) {
+    Logger.log("❌ Błąd wysyłania wiadomości Telegram: " + err.toString());
+  }
 }
