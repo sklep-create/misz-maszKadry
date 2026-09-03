@@ -83,13 +83,26 @@ jobs:
             return parsed;
           }
 
-          const credentials = normalize(rawSecret);
+          let credentials = normalize(rawSecret);
 
           if (!credentials) {
             fail('Sekret CLASP_CREDS musi zawierać poprawny JSON z pliku .clasprc.json (surowy lub zakodowany base64).');
           }
 
           const hasV3Token = credentials.tokens && typeof credentials.tokens === 'object' && credentials.tokens.default;
+
+          if (
+            hasV3Token &&
+            credentials.tokens.default &&
+            typeof credentials.tokens.default === 'object' &&
+            credentials.tokens.default.token &&
+            credentials.tokens.default.oauth2ClientSettings
+          ) {
+            credentials = {
+              token: credentials.tokens.default.token,
+              oauth2ClientSettings: credentials.tokens.default.oauth2ClientSettings,
+            };
+          }
           const hasLegacyLocalToken = credentials.token && credentials.oauth2ClientSettings;
           const hasLegacyGlobalToken = credentials.access_token && credentials.refresh_token;
           const looksLikeOAuthClientConfig = credentials.installed || credentials.web;
