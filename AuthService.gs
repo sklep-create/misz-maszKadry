@@ -21,6 +21,34 @@ function isUserAuthorized(chatId) {
 }
 
 /**
+ * Normalizuje listę Telegram ID pracodawców do unikalnych wartości numerycznych
+ */
+function parseEmployerTelegramIds(rawValues) {
+  const values = Array.isArray(rawValues) ? rawValues : [rawValues];
+  const ids = [];
+  
+  values.forEach(item => {
+    const raw = (item || '').toString().trim();
+    if (!raw) {
+      return;
+    }
+    
+    raw.split(',').forEach(part => {
+      const value = part.trim();
+      if (/^-?\d+$/.test(value)) {
+        ids.push(value);
+      }
+    });
+  });
+  
+  return Array.from(new Set(ids));
+}
+
+function isEmployerTelegramChat(chatId) {
+  return getEmployerTelegramIds().indexOf(chatId.toString()) !== -1;
+}
+
+/**
  * Rejestruje nowego pracownika po /start
  */
 function registerNewEmployee(chatId, fullName) {
@@ -120,17 +148,7 @@ function getEmployerTelegramIds() {
       continue;
     }
     
-    const ids = [];
-    for (let col = 1; col < data[i].length; col++) {
-      const raw = (data[i][col] || '').toString().trim();
-      if (!raw) continue;
-      raw.split(',').forEach(part => {
-        const value = part.trim();
-        if (value) ids.push(value);
-      });
-    }
-    
-    return Array.from(new Set(ids));
+    return parseEmployerTelegramIds(data[i].slice(1));
   }
   
   return [];

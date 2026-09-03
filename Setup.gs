@@ -84,6 +84,7 @@ function setEmployerTelegramIds() {
   const response = ui.prompt(
     '👔 Konfiguracja Telegram ID Pracodawców\n\n' +
     'Podaj jeden lub wiele ID rozdzielonych przecinkami.\n' +
+    'Nowe ID zostaną dopisane do istniejącej listy.\n' +
     'Przykład: 123456789,987654321',
     ui.ButtonSet.OK_CANCEL
   );
@@ -93,13 +94,10 @@ function setEmployerTelegramIds() {
   }
   
   const raw = response.getResponseText().trim();
-  const ids = raw
-    .split(',')
-    .map(item => item.trim())
-    .filter(item => item !== '');
+  const ids = parseEmployerTelegramIds(raw);
   
   if (!ids.length) {
-    ui.alert('❌ Nie podano żadnego ID.');
+    ui.alert('❌ Nie podano poprawnego numerycznego ID.');
     return;
   }
   
@@ -117,18 +115,17 @@ function setEmployerTelegramIds() {
   
   if (rowIndex === -1) {
     rowIndex = sheet.getLastRow() + 1;
-    sheet.getRange(rowIndex, 1, 1, 3).setValues([[
-      'PRACODAWCY_TELEGRAM_IDS',
-      '',
-      'ID Telegram pracodawców (kolumny B..N)'
-    ]]);
+    sheet.getRange(rowIndex, 1).setValue('PRACODAWCY_TELEGRAM_IDS');
   }
   
-  const clearWidth = Math.max(sheet.getLastColumn() - 1, ids.length, 1);
+  const existingIds = getEmployerTelegramIds();
+  const mergedIds = Array.from(new Set(existingIds.concat(ids)));
+  const addedCount = mergedIds.length - existingIds.length;
+  const clearWidth = Math.max(sheet.getLastColumn() - 1, mergedIds.length, 1);
   sheet.getRange(rowIndex, 2, 1, clearWidth).clearContent();
-  sheet.getRange(rowIndex, 2, 1, ids.length).setValues([ids]);
+  sheet.getRange(rowIndex, 2, 1, mergedIds.length).setValues([mergedIds]);
   
-  ui.alert(`✅ Zapisano ${ids.length} ID pracodawców.`);
+  ui.alert(`✅ Zapisano ${mergedIds.length} ID pracodawców (dodano ${addedCount} nowych).`);
 }
 
 /**

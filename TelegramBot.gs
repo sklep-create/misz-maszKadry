@@ -1,14 +1,26 @@
 /**
  * Odbieranie powiadomień HTTP POST z Telegrama
  */
+const TELEGRAM_UPDATE_STATE_KEY = 'TELEGRAM_UPDATE_STATE';
+const TELEGRAM_RECENT_UPDATE_LIMIT = 50;
+
 function doPost(e) {
   try {
     const update = JSON.parse(e.postData.contents);
+    const updateId = getTelegramUpdateId(update);
+    
+    if (updateId !== null && isTelegramUpdateProcessed(updateId)) {
+      return ContentService.createTextOutput("OK");
+    }
     
     if (update.message) {
       handleMessage(update.message);
     } else if (update.callback_query) {
       handleCallbackQuery(update.callback_query);
+    }
+    
+    if (updateId !== null) {
+      markTelegramUpdateProcessed(updateId);
     }
   } catch (err) {
     Logger.log("Błąd doPost: " + err.toString());
@@ -19,6 +31,12 @@ function doPost(e) {
 function handleMessage(msg) {
   const chatId = msg.chat.id;
   const text = msg.text ? msg.text.trim() : "";
+  
+  if (isEmployerTelegramChat(chatId)) {
+    handleEmployerMessage(msg);
+    return;
+  }
+  
   const auth = isUserAuthorized(chatId);
   const pinMatch = text.match(/^\/pin\s+(\d{6})$/);
   
@@ -102,6 +120,13 @@ function getMainKeyboard() {
   };
 }
 
+function getEmployerKeyboard() {
+  return {
+    keyboard: [[{ text: "👔 Panel Pracodawcy" }]],
+    resize_keyboard: true
+  };
+}
+
 function getPinKeyboard() {
   return {
     keyboard: [[{ text: "📌 Podaj PIN" }]],
@@ -112,6 +137,11 @@ function getPinKeyboard() {
 function handleStartCommand(msg, auth) {
   const chatId = msg.chat.id;
   const fullName = [msg.from.first_name || "", msg.from.last_name || ""].join(" ").trim();
+  
+  if (isEmployerTelegramChat(chatId)) {
+    handleEmployerMessage(msg);
+    return;
+  }
   
   if (auth.status === "Zablokowany") {
     sendTelegramMessage(
@@ -142,6 +172,35 @@ function handleStartCommand(msg, auth) {
     chatId,
     "🔐 Twoje konto oczekuje na PIN od Pracodawcy.\nKliknij przycisk „📌 Podaj PIN” i dokończ rejestrację.",
     getPinKeyboard()
+  );
+}
+
+function handleEmployerMessage(msg) {
+  const chatId = msg.chat.id;
+  const text = msg.text ? msg.text.trim() : "";
+  
+  if (text === "/start") {
+    sendTelegramMessage(
+      chatId,
+      "👔 Witaj, jesteś zalogowany jako Pracodawca.\n\nFunkcje panelu pracodawcy są dostępne z poziomu arkusza Google Sheets oraz Mini App.",
+      getEmployerKeyboard()
+    );
+    return;
+  }
+  
+  if (text === "📌 Podaj PIN" || /^\/pin\b/.test(text)) {
+    sendTelegramMessage(
+      chatId,
+      "👔 To konto jest oznaczone jako Pracodawca.\nPIN pracownika nie jest tutaj wymagany.",
+      getEmployerKeyboard()
+    );
+    return;
+  }
+  
+  sendTelegramMessage(
+    chatId,
+    "👔 Jesteś zalogowany jako Pracodawca.\nZarządzanie pracownikami wykonuj z poziomu arkusza Google Sheets lub Mini App.",
+    getEmployerKeyboard()
   );
 }
 
@@ -196,4 +255,66 @@ function sendTelegramMessage(chatId, text, replyMarkup = null) {
   } catch (err) {
     Logger.log("❌ Błąd wysyłania wiadomości Telegram: " + err.toString());
   }
+}
+
+function getTelegramUpdateId(update) {
+  if (!update || typeof update.update_id === 'undefined' || update.update_id === null) {
+    return null;
+  }
+  
+  const updateId = Number(update.update_id);
+  return isNaN(updateId) ? null : updateId;
+}
+
+function getTelegramUpdateState() {
+  const storedState = PropertiesService.getScriptProperties().getProperty(TELEGRAM_UPDATE_STATE_KEY);
+  
+  if (!storedState) {
+    return {
+      lastUpdateId: null,
+      recentIds: []
+    };
+  }
+  
+  try {
+    const parsed = JSON.parse(storedState);
+    return {
+      lastUpdateId: typeof parsed.lastUpdateId === 'number' ? parsed.lastUpdateId : null,
+      recentIds: Array.isArray(parsed.recentIds)
+        ? parsed.recentIds
+            .map(item => Number(item))
+            .filter(item => !isNaN(item))
+        : []
+    };
+  } catch (err) {
+    Logger.log("⚠️ Nie udało się odczytać stanu update_id: " + err.toString());
+    return {
+      lastUpdateId: null,
+      recentIds: []
+    };
+  }
+}
+
+function isTelegramUpdateProcessed(updateId) {
+  const state = getTelegramUpdateState();
+  return state.recentIds.indexOf(updateId) !== -1;
+}
+
+function markTelegramUpdateProcessed(updateId) {
+  const state = getTelegramUpdateState();
+  const recentIds = state.recentIds.filter(item => item !== updateId);
+  
+  recentIds.push(updateId);
+  
+  while (recentIds.length > TELEGRAM_RECENT_UPDATE_LIMIT) {
+    recentIds.shift();
+  }
+  
+  PropertiesService.getScriptProperties().setProperty(
+    TELEGRAM_UPDATE_STATE_KEY,
+    JSON.stringify({
+      lastUpdateId: state.lastUpdateId === null ? updateId : Math.max(state.lastUpdateId, updateId),
+      recentIds: recentIds
+    })
+  );
 }
