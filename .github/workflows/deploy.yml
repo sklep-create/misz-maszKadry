@@ -1,14 +1,189 @@
--      - name: Checkout code
--        uses: actions/checkout@v3
-+      - name: Checkout code
-+        uses: actions/checkout@v4
-         with:
-           fetch-depth: 0
+name: Deploy to Google Apps Script
 
--      - name: Setup Node.js
--        uses: actions/setup-node@v3
-+      - name: Setup Node.js
-+        uses: actions/setup-node@v4
-         with:
--          node-version: '18'
-+          node-version: '22'
+on:
+  push:
+    branches:
+      - main
+      - copilot/deploy-telegram-bot
+    paths:
+      - '**.gs'
+      - 'appsscript.json'
+      - '.clasp.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Clasp
+        run: npm install -g @google/clasp
+
+      - name: Setup Clasp credentials
+        env:
+          CLASP_CREDS: ${{ secrets.CLASP_CREDS }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const rawSecret = (process.env.CLASP_CREDS || '').trim();
+          const outputPath = path.join(process.env.HOME, '.clasprc.json');
+
+          function fail(message) {
+            console.error(message);
+            process.exit(1);
+          }
+
+          if (!rawSecret) {
+            fail('Brak sekretu CLASP_CREDS.');
+          }
+
+          function tryParse(value) {
+            try {
+              return JSON.parse(value);
+            } catch {
+              return null;
+            }
+          }
+
+          function normalize(value) {
+            let parsed = tryParse(value);
+            if (typeof parsed === 'string') {
+              parsed = tryParse(parsed);
+            }
+
+            if (parsed) {
+              return parsed;
+            }
+
+            const decoded = Buffer.from(value, 'base64').toString('utf8').trim();
+            if (!decoded || decoded === value) {
+              return null;
+            }
+
+            parsed = tryParse(decoded);
+            if (typeof parsed === 'string') {
+              parsed = tryParse(parsed);
+            }
+
+            return parsed;
+          }
+
+          function hasToken(candidate) {
+            return !!(candidate && typeof candidate === 'object' && candidate.access_token && candidate.refresh_token);
+          }
+
+          function toV3DefaultCredential(candidate) {
+            if (!candidate || typeof candidate !== 'object') {
+              return null;
+            }
+
+            if (hasToken(candidate)) {
+              return {
+                type: candidate.type || 'authorized_user',
+                ...candidate,
+              };
+            }
+
+            const token = candidate.token;
+            const client = candidate.oauth2ClientSettings;
+
+            if (!hasToken(token) || !client || !client.clientId || !client.clientSecret) {
+              return null;
+            }
+
+            return {
+              type: 'authorized_user',
+              ...token,
+              client_id: client.clientId,
+              client_secret: client.clientSecret,
+            };
+          }
+
+          const credentials = normalize(rawSecret);
+
+          if (!credentials) {
+            fail('Sekret CLASP_CREDS musi zawierać poprawny JSON z pliku .clasprc.json (surowy lub zakodowany base64).');
+          }
+
+          if (credentials.installed || credentials.web) {
+            fail('Sekret CLASP_CREDS zawiera konfigurację klienta OAuth, a nie zalogowany plik .clasprc.json. Wygeneruj sekret po pełnym clasp login i wklej zawartość .clasprc.json.');
+          }
+
+          let normalizedCredentials;
+
+          if (credentials.tokens && typeof credentials.tokens === 'object') {
+            const defaultCredential = toV3DefaultCredential(credentials.tokens.default);
+            if (!defaultCredential) {
+              fail('Sekret CLASP_CREDS zawiera nieprawidłowy wpis tokens.default. Oczekiwano danych logowania po clasp login.');
+            }
+
+            normalizedCredentials = {
+              ...credentials,
+              tokens: {
+                ...credentials.tokens,
+                default: defaultCredential,
+              },
+            };
+          } else {
+            const defaultCredential = toV3DefaultCredential(credentials);
+            if (!defaultCredential) {
+              fail('Sekret CLASP_CREDS nie zawiera danych logowania clasp. Oczekiwano zawartości pliku .clasprc.json wygenerowanego po clasp login.');
+            }
+
+            normalizedCredentials = {
+              tokens: {
+                default: defaultCredential,
+              },
+            };
+          }
+
+          fs.writeFileSync(outputPath, JSON.stringify(normalizedCredentials, null, 2));
+          fs.chmodSync(outputPath, 0o600);
+          NODE
+
+      - name: Deploy to Google Apps Script
+        run: |
+          clasp push --force
+
+      - name: Create new deployment
+        id: deployment
+        run: |
+          set -euo pipefail
+
+          DEPLOY_OUTPUT="$(clasp create-deployment --description "GitHub Actions ${GITHUB_SHA}")"
+          echo "${DEPLOY_OUTPUT}"
+
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOY_OUTPUT}" | grep -Eo 'AKfycb[a-zA-Z0-9_-]+' | head -n 1)"
+          SCRIPT_ID="$(node -p "require('./.clasp.json').scriptId")"
+
+          if [ -z "${DEPLOYMENT_ID}" ]; then
+            echo "Nie udało się odczytać Deployment ID z outputu clasp." >&2
+            exit 1
+          fi
+
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "script_id=${SCRIPT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "exec_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
+          echo "bot_url=https://script.google.com/macros/d/${SCRIPT_ID}/useTriggerFunction" >> "${GITHUB_OUTPUT}"
+
+      - name: Print deployment links
+        run: |
+          echo "Deployment ID: ${{ steps.deployment.outputs.deployment_id }}"
+          echo "Script ID: ${{ steps.deployment.outputs.script_id }}"
+          echo "Web app URL: ${{ steps.deployment.outputs.exec_url }}"
+          echo "Bot URL: ${{ steps.deployment.outputs.bot_url }}"
