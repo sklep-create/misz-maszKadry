@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - main
+      - copilot/deploy-telegram-bot
     paths:
       - '**.gs'
       - 'appsscript.json'
       - '.clasp.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -35,7 +38,31 @@ jobs:
       - name: Deploy to Google Apps Script
         run: |
           clasp push --force
-        continue-on-error: true
 
-      - name: Verify deployment
-        run: echo "✅ Deployment to Google Apps Script completed"
+      - name: Create new deployment
+        id: deployment
+        run: |
+          set -euo pipefail
+
+          DEPLOY_OUTPUT="$(clasp create-deployment --description "GitHub Actions ${GITHUB_SHA}")"
+          echo "${DEPLOY_OUTPUT}"
+
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOY_OUTPUT}" | grep -Eo 'AKfycb[a-zA-Z0-9_-]+' | head -n 1)"
+          SCRIPT_ID="$(node -p "require('./.clasp.json').scriptId")"
+
+          if [ -z "${DEPLOYMENT_ID}" ]; then
+            echo "Nie udało się odczytać Deployment ID z outputu clasp." >&2
+            exit 1
+          fi
+
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "script_id=${SCRIPT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "exec_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
+          echo "bot_url=https://script.google.com/macros/d/${SCRIPT_ID}/useTriggerFunction" >> "${GITHUB_OUTPUT}"
+
+      - name: Print deployment links
+        run: |
+          echo "Deployment ID: ${{ steps.deployment.outputs.deployment_id }}"
+          echo "Script ID: ${{ steps.deployment.outputs.script_id }}"
+          echo "Web app URL: ${{ steps.deployment.outputs.exec_url }}"
+          echo "Bot URL: ${{ steps.deployment.outputs.bot_url }}"
