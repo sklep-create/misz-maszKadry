@@ -13,7 +13,83 @@ function onOpen() {
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
+    .addSeparator()
+    .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
     .addToUi();
+}
+
+/**
+ * Wyskakujące okienko z prośbą o link do nowego wdrożenia aplikacji (deployment URL)
+ * Link powinien kończyć się na /exec
+ */
+function setWebhookDeploymentId() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    '📡 Konfiguracja Deployment URL dla Webhook\'a\n\n' +
+    'Wklej tutaj pełny link do nowego wdrożenia Apps Script:\n' +
+    '(powinien wyglądać jak: https://script.google.com/macros/d/[ID]/useTriggerFunction)',
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (response.getSelectedButton() === ui.Button.OK) {
+    const deploymentUrl = response.getResponseText().trim();
+    
+    // Validacja URL
+    if (!deploymentUrl || deploymentUrl.length < 20) {
+      ui.alert('❌ URL jest zbyt krótki. Upewnij się, że wklejasz pełny link.');
+      return;
+    }
+    
+    if (!deploymentUrl.includes('script.google.com')) {
+      ui.alert('❌ URL musi zawierać "script.google.com"');
+      return;
+    }
+    
+    // Zapisz URL w Properties Service
+    PropertiesService.getScriptProperties().setProperty('WEBHOOK_DEPLOYMENT_URL', deploymentUrl);
+    
+    // Zaktualizuj CONFIG.WEBHOOK_URL
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
+      
+      if (sheet) {
+        // Szukamy wiersza z WEBHOOK_URL
+        const data = sheet.getDataRange().getValues();
+        for (let i = 0; i < data.length; i++) {
+          if (data[i][0] === 'WEBHOOK_URL' || data[i][0] === 'Webhook URL') {
+            sheet.getRange(i + 1, 2).setValue(deploymentUrl);
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      Logger.log('Uwaga: Nie udało się zaktualizować arkusza: ' + err.toString());
+    }
+    
+    ui.alert(
+      '✅ Deployment URL został bezpiecznie zapisany!\n\n' +
+      'Link: ' + deploymentUrl + '\n\n' +
+      'Możesz teraz skonfigurować webhook Telegrama.'
+    );
+    
+    Logger.log('✅ Webhook Deployment URL został zapisany: ' + deploymentUrl);
+  }
+}
+
+/**
+ * Pobiera Deployment URL z Properties Service
+ */
+function getWebhookDeploymentUrl() {
+  const url = PropertiesService.getScriptProperties().getProperty('WEBHOOK_DEPLOYMENT_URL');
+  
+  if (!url || url === '') {
+    Logger.log('⚠️ UWAGA: Deployment URL nie jest ustawiony!');
+    Logger.log('Uruchom funkcję: setWebhookDeploymentId()');
+    throw new Error('Webhook Deployment URL is not configured. Run setWebhookDeploymentId() first.');
+  }
+  
+  return url;
 }
 
 /**
@@ -31,7 +107,8 @@ function setupDatabaseStructure() {
         ['NAZWA_FIRMY', 'Moja Firma Sp. z o.o.', 'Nazwa firmy widoczna w raportach'],
         ['NORMA_ETAT_UOP', '8', 'Standardowa norma dobowa dla UoP (godziny)'],
         ['NORMA_OZN_UOP', '7', 'Norma dobowa dla pracowników OzN (stopień umiarkowany/znaczny)'],
-        ['MIESIAC_GRAFIKU', '2026-10', 'Aktualnie planowany miesiąc grafiku (YYYY-MM)']
+        ['MIESIAC_GRAFIKU', '2026-10', 'Aktualnie planowany miesiąc grafiku (YYYY-MM)'],
+        ['WEBHOOK_URL', '', 'URL wdrożenia Apps Script do webhook\'a Telegrama']
       ]
     },
     'Pracownicy': {
