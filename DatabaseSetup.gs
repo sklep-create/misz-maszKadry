@@ -15,7 +15,8 @@ function setupDatabaseStructure() {
         ['NAZWA_FIRMY', 'Moja Firma Sp. z o.o.', 'Nazwa firmy widoczna w raportach'],
         ['NORMA_ETAT_UOP', '8', 'Standardowa norma dobowa dla UoP (godziny)'],
         ['NORMA_OZN_UOP', '7', 'Norma dobowa dla pracowników OzN (stopień umiarkowany/znaczny)'],
-        ['MIESIAC_GRAFIKU', '2026-10', 'Aktualnie planowany miesiąc grafiku (YYYY-MM)']
+        ['MIESIAC_GRAFIKU', '2026-10', 'Aktualnie planowany miesiąc grafiku (YYYY-MM)'],
+        ['PRACODAWCY_TELEGRAM_IDS', '', 'ID Telegram pracodawców (kolumny B..N)']
       ]
     },
     'Pracownicy': {
@@ -27,14 +28,16 @@ function setupDatabaseStructure() {
         'Forma_Zatrudnienia', // UoP / UZ / B2B
         'Wymiar_Etatu',       // 1.0, 0.5, 0.75
         'Stopien_OZN',        // Brak / Lekki / Umiarkowany / Znaczny
-        'Status_Autoryzacji', // TRUE / FALSE
+        'Status_Autoryzacji', // OczekujeNaPIN / Autoryzowany / Zablokowany
         'Staz_Pracy_Lata',    // Łączny staż pracy z edukacją
+        'Licz_błędy',         // Licznik prób PIN
+        'PIN',                // Jednorazowy PIN rejestracyjny
         'Roczny_Limit_Urlopu' // 20, 26, 30 (+10 OzN)
       ],
       initialData: [
-        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', true, 12, 26],
-        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', false, 4, 30], // 20 + 10 OzN
-        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', false, 2, 0]
+        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
+        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30], // 20 + 10 OzN
+        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0]
       ]
     },
     'Grafik': {
