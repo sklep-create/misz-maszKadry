@@ -1,5 +1,5 @@
 /**
- * Automatyczne wywołanie przy otwarciu pliku Arkusza.
+ * Automatyczne wywołanie przy otwarciu pliku Arkusza XXX.
  * Tworzy własne menu na pasku narzędzi po sekcji "Pomoc".
  */
 function onOpen() {

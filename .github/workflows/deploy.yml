@@ -158,12 +158,16 @@ jobs:
           fs.chmodSync(outputPath, 0o600);
           NODE
 
+      - name: Verify clasp auth
+        run: clasp login --status
+
       - name: Deploy to Google Apps Script
         run: |
           clasp push --force
 
       - name: Create new deployment
         id: deployment
+        shell: bash
         run: |
           set -euo pipefail
 
