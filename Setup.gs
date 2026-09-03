@@ -6,6 +6,9 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   
   ui.createMenu('⚙️ System Kadrowy')
+    .addItem('🔐 Inicjalizuj sekretne dane (PIERWSZE URUCHOMIENIE)', 'initializeSecrets')
+    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
+    .addSeparator()
     .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
