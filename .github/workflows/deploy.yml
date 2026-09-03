@@ -1,14 +1,78 @@
--      - name: Checkout code
--        uses: actions/checkout@v3
-+      - name: Checkout code
-+        uses: actions/checkout@v4
-         with:
-           fetch-depth: 0
+name: Deploy to Google Apps Script
 
--      - name: Setup Node.js
--        uses: actions/setup-node@v3
-+      - name: Setup Node.js
-+        uses: actions/setup-node@v4
-         with:
--          node-version: '18'
-+          node-version: '22'
+on:
+  push:
+    branches:
+      - main
+      - copilot/deploy-telegram-bot
+    paths:
+      - '**.gs'
+      - 'appsscript.json'
+      - '.clasp.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Clasp
+        run: npm install -g @google/clasp
+
+      - name: Setup Clasp credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.CLASP_CREDS }}" ]; then
+            echo "CLASP_CREDS secret is empty" >&2
+            exit 1
+          fi
+
+          printf '%s' '${{ secrets.CLASP_CREDS }}' > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json', 'utf8'))"
+
+      - name: Verify clasp auth
+        run: clasp login --status
+
+      - name: Deploy to Google Apps Script
+        run: clasp push --force
+
+      - name: Create new deployment
+        id: deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_OUTPUT="$(clasp create-deployment --description "GitHub Actions ${GITHUB_SHA}")"
+          echo "${DEPLOY_OUTPUT}"
+
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOY_OUTPUT}" | grep -Eo 'AKfycb[a-zA-Z0-9_-]+' | head -n 1)"
+          SCRIPT_ID="$(node -p "require('./.clasp.json').scriptId")"
+
+          if [ -z "${DEPLOYMENT_ID}" ]; then
+            echo "Nie udało się odczytać Deployment ID z outputu clasp." >&2
+            exit 1
+          fi
+
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "script_id=${SCRIPT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "exec_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
+          echo "bot_url=https://script.google.com/macros/d/${SCRIPT_ID}/useTriggerFunction" >> "${GITHUB_OUTPUT}"
+
+      - name: Print deployment links
+        run: |
+          echo "Deployment ID: ${{ steps.deployment.outputs.deployment_id }}"
+          echo "Script ID: ${{ steps.deployment.outputs.script_id }}"
+          echo "Web app URL: ${{ steps.deployment.outputs.exec_url }}"
+          echo "Bot URL: ${{ steps.deployment.outputs.bot_url }}"
