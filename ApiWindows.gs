@@ -2,8 +2,16 @@
  * Obsługa zapytań HTTP GET z Dashboardu React (Windows)
  */
 function doGet(e) {
-  const action = e.parameter.action;
+  const params = (e && e.parameter) ? e.parameter : {};
+  const action = params.action;
+  const page = params.page;
   let responseData = {};
+
+  if (page === "miniapp") {
+    return HtmlService.createHtmlOutputFromFile("MiniApp")
+      .setTitle("Panel Pracownika")
+      .addMetaTag("viewport", "width=device-width, initial-scale=1");
+  }
 
   if (action === "getDashboardData") {
     responseData = {
@@ -11,6 +19,8 @@ function doGet(e) {
       todayLogs: getSheetDataAsJson(CONFIG.SHEETS.TIMELOG),
       pendingRequests: getSheetDataAsJson(CONFIG.SHEETS.LEAVES)
     };
+  } else if (action === "registerEvent") {
+    responseData = registerEventFromMiniApp(params);
   }
 
   return ContentService.createTextOutput(JSON.stringify(responseData))

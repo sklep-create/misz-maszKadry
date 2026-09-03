@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Pracownika</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      :root {
+        --bg: #17212b;
+        --surface: #1f2a36;
+        --text: #ffffff;
+        --hint: #8e9aa7;
+        --accent: #2ea6ff;
+        --start: #31c46c;
+        --stop: #ff5a5f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .panel {
+        width: 100%;
+        max-width: 420px;
+        background: var(--surface);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+      }
+
+      h1 {
+        margin: 0 0 8px 0;
+        font-size: 24px;
+      }
+
+      .subtitle {
+        margin: 0 0 20px 0;
+        color: var(--hint);
+        font-size: 14px;
+      }
+
+      .button-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .big-btn {
+        border: none;
+        border-radius: 14px;
+        padding: 18px 16px;
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+        cursor: pointer;
+        transition: transform .12s ease, filter .2s ease, opacity .2s ease;
+      }
+
+      .big-btn:active {
+        transform: scale(0.98);
+      }
+
+      .big-btn:disabled {
+        opacity: 0.65;
+        cursor: wait;
+      }
+
+      .start-btn {
+        background: var(--start);
+      }
+
+      .stop-btn {
+        background: var(--stop);
+      }
+
+      .status {
+        margin-top: 14px;
+        min-height: 22px;
+        font-size: 14px;
+      }
+
+      .status.success {
+        color: #77f5a9;
+      }
+
+      .status.error {
+        color: #ff9ea0;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1>Panel Pracownika</h1>
+      <p class="subtitle">Rejestruj czas pracy bezpośrednio w Telegramie.</p>
+      <div class="button-grid">
+        <button id="startBtn" class="big-btn start-btn">▶️ START</button>
+        <button id="stopBtn" class="big-btn stop-btn">⏹️ STOP</button>
+      </div>
+      <div id="status" class="status"></div>
+    </main>
+
+    <script>
+      (function () {
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        const statusEl = document.getElementById("status");
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+
+        if (tg) {
+          tg.ready();
+          tg.expand();
+          applyTelegramTheme(tg.themeParams || {});
+        }
+
+        startBtn.addEventListener("click", function () {
+          submitEvent("START");
+        });
+
+        stopBtn.addEventListener("click", function () {
+          submitEvent("STOP");
+        });
+
+        function submitEvent(type) {
+          setLoading(true);
+          setStatus("Rejestrowanie...", "");
+          haptic("impact", "light");
+
+          const url = new URL(window.location.href);
+          url.search = "";
+          url.searchParams.set("action", "registerEvent");
+          url.searchParams.set("type", type);
+          url.searchParams.set("initData", tg ? tg.initData || "" : "");
+
+          fetch(url.toString(), { method: "GET" })
+            .then(function (response) { return response.json(); })
+            .then(function (result) {
+              if (result && result.ok) {
+                const text = (result.message || "✅ Zapisano") + (result.time ? (" o " + result.time) : "");
+                setStatus(text, "success");
+                haptic("notification", "success");
+                safeAlert(text);
+                setTimeout(function () {
+                  if (tg && tg.close) tg.close();
+                }, 1300);
+                return;
+              }
+
+              const errorText = result && result.error ? result.error : "Nie udało się zapisać zdarzenia.";
+              setStatus("❌ " + errorText, "error");
+              haptic("notification", "error");
+              safeAlert(errorText);
+            })
+            .catch(function () {
+              setStatus("❌ Błąd połączenia z serwerem.", "error");
+              haptic("notification", "error");
+              safeAlert("Błąd połączenia z serwerem.");
+            })
+            .finally(function () {
+              setLoading(false);
+            });
+        }
+
+        function setLoading(loading) {
+          startBtn.disabled = loading;
+          stopBtn.disabled = loading;
+        }
+
+        function setStatus(message, className) {
+          statusEl.textContent = message || "";
+          statusEl.className = "status" + (className ? " " + className : "");
+        }
+
+        function safeAlert(text) {
+          if (tg && tg.showAlert) {
+            tg.showAlert(text);
+          }
+        }
+
+        function haptic(type, style) {
+          if (!tg || !tg.HapticFeedback) return;
+
+          if (type === "impact" && tg.HapticFeedback.impactOccurred) {
+            tg.HapticFeedback.impactOccurred(style || "light");
+          } else if (type === "notification" && tg.HapticFeedback.notificationOccurred) {
+            tg.HapticFeedback.notificationOccurred(style || "success");
+          }
+        }
+
+        function applyTelegramTheme(themeParams) {
+          if (themeParams.bg_color) {
+            document.documentElement.style.setProperty("--bg", themeParams.bg_color);
+          }
+          if (themeParams.secondary_bg_color) {
+            document.documentElement.style.setProperty("--surface", themeParams.secondary_bg_color);
+          }
+          if (themeParams.text_color) {
+            document.documentElement.style.setProperty("--text", themeParams.text_color);
+          }
+          if (themeParams.hint_color) {
+            document.documentElement.style.setProperty("--hint", themeParams.hint_color);
+          }
+          if (themeParams.button_color) {
+            document.documentElement.style.setProperty("--accent", themeParams.button_color);
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
