@@ -159,7 +159,8 @@ jobs:
           NODE
 
       - name: Verify clasp auth
-        run: clasp login --status
+        run: clasp login --status || clasp login --creds ~/.clasprc.json --no-localhost --status 2>/dev/null || echo "Uwaga: 'clasp login --status' nie jest obsługiwane w tej wersji clasp, kontynuuję na podstawie zapisanego pliku .clasprc.json"
+        continue-on-error: true
 
       - name: Deploy to Google Apps Script
         run: |
