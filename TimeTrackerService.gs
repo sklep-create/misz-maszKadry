@@ -1,10 +1,11 @@
 /**
  * Zapisuje zdarzenie START / STOP w arkuszu Ewidencja
  */
-function registerTimeEvent(employeeId, eventType) {
+function registerTimeEvent(employeeId, eventType, source) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.TIMELOG);
   const now = new Date();
+  const eventSource = source || "Telegram";
   
   sheet.appendRow([
     Utilities.getUuid(),
@@ -12,7 +13,7 @@ function registerTimeEvent(employeeId, eventType) {
     Utilities.formatDate(now, "CET", "yyyy-MM-dd"),
     Utilities.formatDate(now, "CET", "HH:mm:ss"),
     eventType,
-    "Telegram",
+    eventSource,
     "Zatwierdzone"
   ]);
 }

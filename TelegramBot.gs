@@ -80,11 +80,24 @@ function handleMessage(msg) {
 }
 
 function getMainKeyboard() {
+  const keyboard = [
+    [{ text: "▶️ START" }, { text: "⏹️ STOP" }],
+    [{ text: "✏️ Zgłoś Korektę" }, { text: "📅 Swój Grafik" }]
+  ];
+
+  try {
+    keyboard.unshift([
+      {
+        text: "📱 Otwórz Panel Pracownika",
+        web_app: { url: getWebhookDeploymentUrl() + "?page=miniapp" }
+      }
+    ]);
+  } catch (err) {
+    Logger.log("⚠️ Mini App URL niedostępny: " + err.toString());
+  }
+
   return {
-    keyboard: [
-      [{ text: "▶️ START" }, { text: "⏹️ STOP" }],
-      [{ text: "✏️ Zgłoś Korektę" }, { text: "📅 Swój Grafik" }]
-    ],
+    keyboard: keyboard,
     resize_keyboard: true
   };
 }
