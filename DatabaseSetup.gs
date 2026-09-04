@@ -3,7 +3,7 @@
  * Tworzy zakładki, nagłówki, formatowanie i dane początkowe.
  */
 function setupDatabaseStructure() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   
   // Słownik struktur tabel
   const schema = {

@@ -10,6 +10,7 @@ function onOpen() {
     .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
     .addSeparator()
     .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
+    .addItem('🗂️ Zapamiętaj ID tego Arkusza (wymagane dla bota)', 'setSpreadsheetId')
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
@@ -26,9 +27,9 @@ function onOpen() {
 function setWebhookDeploymentId() {
   const ui = SpreadsheetApp.getUi();
   const response = ui.prompt(
-    '📡 Konfiguracja Deployment URL dla Webhook\'a\n\n' +
-    'Wklej tutaj pełny link do nowego wdrożenia Apps Script:\n' +
-    '(powinien wyglądać jak: https://script.google.com/macros/d/[ID]/useTriggerFunction)',
+    '📡 Konfiguracja URL Webhook\'a (adres Web App /exec)\n\n' +
+    'Wklej tutaj adres Web App z wdrożenia Apps Script:\n' +
+    '(musi kończyć się na /exec, np.: https://script.google.com/macros/s/[ID]/exec)',
     ui.ButtonSet.OK_CANCEL
   );
   
@@ -46,12 +47,18 @@ function setWebhookDeploymentId() {
       return;
     }
     
+    // Jedynym poprawnym adresem, na który Telegram może wysyłać wiadomości, jest adres Web App /exec
+    if (!deploymentUrl.includes('/exec')) {
+      ui.alert('❌ URL musi kończyć się na "/exec" (adres Web App).\n\nPrzykład:\nhttps://script.google.com/macros/s/[ID]/exec\n\nTo jedyny adres, na który Telegram wysyła wiadomości (webhook).');
+      return;
+    }
+    
     // Zapisz URL w Properties Service
     PropertiesService.getScriptProperties().setProperty('WEBHOOK_DEPLOYMENT_URL', deploymentUrl);
     
     // Zaktualizuj CONFIG.WEBHOOK_URL
     try {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const ss = getSpreadsheet();
       const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
       
       if (sheet) {
@@ -101,7 +108,7 @@ function setEmployerTelegramIds() {
     return;
   }
   
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
   const data = sheet.getDataRange().getValues();
   let rowIndex = -1;
@@ -147,7 +154,7 @@ function getWebhookDeploymentUrl() {
  * Automatyczny generator bazy danych dla systemu ewidencji czasu pracy
  */
 function setupDatabaseStructure() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   
   const schema = {
     'Ustawienia': {

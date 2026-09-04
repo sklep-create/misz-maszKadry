@@ -211,11 +211,12 @@ jobs:
           echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
           echo "script_id=${SCRIPT_ID}" >> "${GITHUB_OUTPUT}"
           echo "exec_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
-          echo "bot_url=https://script.google.com/macros/d/${SCRIPT_ID}/useTriggerFunction" >> "${GITHUB_OUTPUT}"
+          # UWAGA: Telegram webhook oraz MiniApp muszą używać adresu /exec (Web App URL).
+          # Adres typu /useTriggerFunction NIE jest poprawnym adresem webhooka.
+          echo "webhook_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
 
       - name: Print deployment links
         run: |
           echo "Deployment ID: ${{ steps.deployment.outputs.deployment_id }}"
           echo "Script ID: ${{ steps.deployment.outputs.script_id }}"
-          echo "Web app URL: ${{ steps.deployment.outputs.exec_url }}"
-          echo "Bot URL: ${{ steps.deployment.outputs.bot_url }}"
+          echo "Web app / Webhook URL (wklej w arkuszu jako URL): ${{ steps.deployment.outputs.webhook_url }}"

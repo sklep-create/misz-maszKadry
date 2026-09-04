@@ -2,7 +2,7 @@
  * Funkcja uruchamiana co 15 minut przez wyzwalacz czasowy GAS
  */
 function checkMissingStartLogs() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const todayStr = Utilities.formatDate(new Date(), "CET", "yyyy-MM-dd");
   const currentTimeStr = Utilities.formatDate(new Date(), "CET", "HH:mm");
   

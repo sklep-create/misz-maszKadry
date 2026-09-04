@@ -28,7 +28,7 @@ function doGet(e) {
 }
 
 function getSheetDataAsJson(sheetName) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const sheet = getSpreadsheet().getSheetByName(sheetName);
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const result = [];

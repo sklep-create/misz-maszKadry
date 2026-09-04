@@ -72,9 +72,36 @@ function showTokenInputDialog() {
  * Pobiera aktualny PIN z zakładki 'Ustawienia' (Komórka B2)
  */
 function getSystemPin() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
   return sheet.getRange("B2").getValue().toString().trim();
+}
+
+/**
+ * Zwraca aktywny skoroszyt.
+ * Jeśli w Properties Service ustawiono SPREADSHEET_ID, otwiera go wprost
+ * (skrypt samodzielny / standalone, np. wdrażany przez clasp/GitHub Actions).
+ * W przeciwnym razie sięga po aktywny arkusz (skrypt podpięty do arkusza).
+ */
+function getSpreadsheet() {
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  if (spreadsheetId) {
+    return SpreadsheetApp.openById(spreadsheetId);
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+/**
+ * Zapisuje ID aktywnego arkusza w Properties Service.
+ * Wymagane, gdy skrypt jest samodzielny (nie jest podpięty do konkretnego arkusza).
+ */
+function setSpreadsheetId() {
+  const ui = SpreadsheetApp.getUi();
+  const currentId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', currentId);
+  ui.alert('✅ Zapamiętano ID arkusza: ' + currentId + '\n\nOd teraz bot i dashboard korzystają z tego arkusza.');
+  Logger.log('✅ SPREADSHEET_ID = ' + currentId);
 }
 
 /**

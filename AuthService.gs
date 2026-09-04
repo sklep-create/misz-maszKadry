@@ -2,7 +2,7 @@
  * Weryfikuje czy użytkownik Telegrama przeszedł autoryzację PIN
  */
 function isUserAuthorized(chatId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
   
@@ -52,7 +52,7 @@ function isEmployerTelegramChat(chatId) {
  * Rejestruje nowego pracownika po /start
  */
 function registerNewEmployee(chatId, fullName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const pin = generateRegistrationPin();
   const employeeId = generateNextEmployeeId(sheet);
@@ -85,7 +85,7 @@ function registerNewEmployee(chatId, fullName) {
  * Próba weryfikacji użytkownika jednorazowym PIN-em rejestracyjnym
  */
 function authorizeUserWithPin(chatId, enteredPin) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
   
@@ -139,7 +139,7 @@ function generateRegistrationPin() {
  * Wiersz: PRACODAWCY_TELEGRAM_IDS, kolumny B..N
  */
 function getEmployerTelegramIds() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
   const data = sheet.getDataRange().getValues();
   
