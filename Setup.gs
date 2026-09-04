@@ -6,16 +6,16 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   
   ui.createMenu('⚙️ System Kadrowy')
-    .addItem('🔐 Inicjalizuj sekretne dane (PIERWSZE URUCHOMIENIE)', 'initializeSecrets')
-    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
-    .addSeparator()
     .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
+    .addItem('🔐 Inicjalizuj sekretne dane (PIERWSZE URUCHOMIENIE)', 'initializeSecrets')
     .addItem('🗂️ Zapamiętaj ID tego Arkusza (wymagane dla bota)', 'setSpreadsheetId')
+    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')    
+    .addSeparator()    
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
-    .addSeparator()
-    .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
+    .addSeparator()    
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
     .addSeparator()
+    .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
     .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
     .addToUi();
 }
