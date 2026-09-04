@@ -17,6 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # sekrety nie mogą być użyte bezpośrednio w warunku `if:`,
+    # dlatego na poziomie jobu mapujemy obecność tokena na zmienną środowiskową
+    env:
+      HAS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN != '' }}
 
     steps:
       - name: Checkout code
@@ -216,7 +220,7 @@ jobs:
           echo "webhook_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
 
       - name: Configure Telegram webhook
-        if: ${{ secrets.TELEGRAM_TOKEN != '' }}
+        if: ${{ env.HAS_TELEGRAM_TOKEN == 'true' }}
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           WEBHOOK_URL: ${{ steps.deployment.outputs.webhook_url }}
