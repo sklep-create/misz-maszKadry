@@ -181,15 +181,11 @@ jobs:
           DEPLOYMENTS_OUTPUT="$(clasp deployments || true)"
           echo "${DEPLOYMENTS_OUTPUT}"
 
-          if [ -z "${DEPLOYMENT_ID}" ]; then
-            DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS_OUTPUT}" | grep -Eo 'https://script\.google\.com/macros/s/AKfycb[a-zA-Z0-9_-]+/exec' | sed -E 's#https://script\.google\.com/macros/s/([^/]+)/exec#\1#' | head -n 1 || true)"
-          fi
-
           if [ -n "${DEPLOYMENT_ID}" ]; then
             echo "Updating existing deployment: ${DEPLOYMENT_ID}"
             DEPLOY_OUTPUT="$(clasp deploy --deploymentId "${DEPLOYMENT_ID}" --description "GitHub Actions ${GITHUB_SHA}")"
           else
-            echo "GAS_DEPLOYMENT_ID is not set and no deployment IDs were found in clasp deployments. Creating a new Web App deployment."
+            echo "GAS_DEPLOYMENT_ID is not set. Creating a new Web App deployment."
             DEPLOY_OUTPUT="$(clasp create-deployment --description "GitHub Actions ${GITHUB_SHA}")"
           fi
 
