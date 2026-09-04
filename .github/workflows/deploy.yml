@@ -182,7 +182,7 @@ jobs:
           echo "${DEPLOYMENTS_OUTPUT}"
 
           if [ -z "${DEPLOYMENT_ID}" ]; then
-            DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS_OUTPUT}" | awk '{print $1}' | grep -E '^AKfycb[a-zA-Z0-9_-]+$' | head -n 1 || true)"
+            DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS_OUTPUT}" | grep -Eo 'https://script\.google\.com/macros/s/AKfycb[a-zA-Z0-9_-]+/exec' | sed -E 's#https://script\.google\.com/macros/s/([^/]+)/exec#\1#' | head -n 1 || true)"
           fi
 
           if [ -n "${DEPLOYMENT_ID}" ]; then
