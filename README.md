@@ -21,7 +21,8 @@ System do zarządzania pracownikami, rejestracji czasu pracy i zarządzania wnio
 2. Wklej token bota Telegram
 3. ⚙️ System Kadrowy → 📡 Ustaw Deployment ID dla Webhook'a
 4. Wklej link do wdrożenia Apps Script
-5. ⚙️ System Kadrowy → 🔗 Skonfiguruj Telegram Webhook
+5. Kliknij „Tak" na pytanie *Czy chcesz teraz skonfigurować webhook Telegrama?*
+   (webhook można też skonfigurować później: ⚙️ System Kadrowy → 🔗 Skonfiguruj Telegram Webhook)
 ```
 
 ### 3. Synchronizacja z GitHub (opcjonalne)
@@ -54,6 +55,7 @@ clasp push
 2. Dodaj do GitHub Secrets:
    - `CLASP_CREDS` - pełną zawartość zalogowanego pliku `.clasprc.json` wygenerowanego po `clasp login` (surowy JSON albo base64)
    - nie wklejaj samego pliku `client_secret.json` / konfiguracji OAuth — to nie wystarczy do deployu w CI
+   - `TELEGRAM_TOKEN` (opcjonalnie) - token bota Telegram; jeśli go dodasz, webhook będzie konfigurowany **automatycznie po każdym deployu**
 3. Push do `main` → automatyczny deploy na Apps Script
 
 ## 📁 Struktura Plików

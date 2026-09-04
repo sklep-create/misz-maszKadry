@@ -215,6 +215,22 @@ jobs:
           # Adres typu /useTriggerFunction NIE jest poprawnym adresem webhooka.
           echo "webhook_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> "${GITHUB_OUTPUT}"
 
+      - name: Configure Telegram webhook
+        if: ${{ secrets.TELEGRAM_TOKEN != '' }}
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          WEBHOOK_URL: ${{ steps.deployment.outputs.webhook_url }}
+        run: |
+          set -euo pipefail
+          echo "Konfiguracja webhooka Telegram dla: ${WEBHOOK_URL}"
+          RESPONSE="$(curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook" \
+            --data-urlencode "url=${WEBHOOK_URL}")"
+          echo "${RESPONSE}"
+          if ! printf '%s' "${RESPONSE}" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
+            echo "::error::Telegram setWebhook nie powiódł się: ${RESPONSE}"
+            exit 1
+          fi
+
       - name: Print deployment links
         run: |
           echo "Deployment ID: ${{ steps.deployment.outputs.deployment_id }}"

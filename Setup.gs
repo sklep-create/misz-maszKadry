@@ -76,11 +76,16 @@ function setWebhookDeploymentId() {
       Logger.log('Uwaga: Nie udało się zaktualizować arkusza: ' + err.toString());
     }
     
-    ui.alert(
+    const configureWebhookNow = ui.alert(
       '✅ Deployment URL został bezpiecznie zapisany!\n\n' +
       'Link: ' + deploymentUrl + '\n\n' +
-      'Możesz teraz skonfigurować webhook Telegrama.'
+      'Czy chcesz teraz skonfigurować webhook Telegrama?',
+      ui.ButtonSet.YES_NO
     );
+
+    if (configureWebhookNow === ui.Button.YES) {
+      setupTelegramWebhook();
+    }
     
     Logger.log('✅ Webhook Deployment URL został zapisany: ' + deploymentUrl);
   }
