@@ -182,14 +182,14 @@ jobs:
           echo "${DEPLOYMENTS_OUTPUT}"
 
           if [ -z "${DEPLOYMENT_ID}" ]; then
-            DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS_OUTPUT}" | grep -Eo 'AKfycb[a-zA-Z0-9_-]+' | head -n 1 || true)"
+            DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS_OUTPUT}" | awk '{print $1}' | grep -E '^AKfycb[a-zA-Z0-9_-]+$' | head -n 1 || true)"
           fi
 
           if [ -n "${DEPLOYMENT_ID}" ]; then
-            echo "Aktualizuje istniejący deployment: ${DEPLOYMENT_ID}"
+            echo "Updating existing deployment: ${DEPLOYMENT_ID}"
             DEPLOY_OUTPUT="$(clasp deploy --deploymentId "${DEPLOYMENT_ID}" --description "GitHub Actions ${GITHUB_SHA}")"
           else
-            echo "Brak GAS_DEPLOYMENT_ID i brak deploymentów z clasp deployments. Tworzę nowy deployment Web App."
+            echo "GAS_DEPLOYMENT_ID is not set and no deployment IDs were found in clasp deployments. Creating a new Web App deployment."
             DEPLOY_OUTPUT="$(clasp create-deployment --description "GitHub Actions ${GITHUB_SHA}")"
           fi
 
@@ -201,12 +201,12 @@ jobs:
           fi
 
           if [ -z "${DEPLOYMENT_ID}" ]; then
-            echo "Nie udało się odczytać Deployment ID z outputu clasp." >&2
+            echo "Failed to read Deployment ID from clasp output." >&2
             exit 1
           fi
 
           if [ -z "${GAS_DEPLOYMENT_ID:-}" ]; then
-            echo "::warning::Ustaw repository variable GAS_DEPLOYMENT_ID=${DEPLOYMENT_ID}, aby kolejne wdrożenia zawsze aktualizowały ten sam deployment."
+            echo "::warning::Set repository variable GAS_DEPLOYMENT_ID=${DEPLOYMENT_ID} so future runs update this same deployment."
           fi
 
           echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
