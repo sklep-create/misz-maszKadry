@@ -6,6 +6,8 @@ const TELEGRAM_RECENT_UPDATE_LIMIT = 50;
 
 function doPost(e) {
   try {
+    Logger.log("doPost: otrzymano POST od: " +
+      (e && e.parameter && e.parameter['user-agent'] ? e.parameter['user-agent'] : "nieznane źródło"));
     const update = JSON.parse(e.postData.contents);
     const updateId = getTelegramUpdateId(update);
     
@@ -24,6 +26,16 @@ function doPost(e) {
     }
   } catch (err) {
     Logger.log("Błąd doPost: " + err.toString());
+    if (err.stack) {
+      Logger.log("Stack doPost:\n" + err.stack);
+    }
+    if (e && e.postData && e.postData.contents) {
+      try {
+        Logger.log("Raw payload (pierwsze 2000 znaków):\n" + e.postData.contents.slice(0, 2000));
+      } catch (logErr) {
+        Logger.log("Nie udało się zapisać surowego payload: " + logErr.toString());
+      }
+    }
   }
   return ContentService.createTextOutput("OK");
 }

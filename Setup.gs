@@ -17,6 +17,15 @@ function onOpen() {
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
     .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
+    .addSeparator()
+    .addSubMenu(ui.createMenu('🛠️ Narzędzia Bota (diagnostyka)'))
+      .addItem('🔍 Pełna diagnostyka bota', 'runFullBotDiagnostics')
+      .addItem('🤖 Sprawdź token bota (getMe)', 'telegramGetMe')
+      .addItem('📡 Pokaż webhook info', 'telegramGetWebhookInfo')
+      .addItem('🔗 Ustaw webhook (z zapisanych danych)', 'telegramSetWebhookNow')
+      .addItem('🧹 Wyczyść pendną kolejkę (flush)', 'telegramFlushUpdates')
+      .addItem('🗑️ USUŃ webhook (reset)', 'telegramResetWebhook')
+      .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage')
     .addToUi();
 }
 
