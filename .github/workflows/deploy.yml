@@ -191,7 +191,10 @@ jobs:
 
           echo "${DEPLOY_OUTPUT}"
 
-          PARSED_DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOY_OUTPUT}" | grep -Eo 'AKfycb[a-zA-Z0-9_-]+' | head -n 1 || true)"
+          PARSED_DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOY_OUTPUT}" | sed -nE 's/^Deployed ([^[:space:]]+) @.*/\1/p' | head -n 1 || true)"
+          if [ -z "${PARSED_DEPLOYMENT_ID}" ]; then
+            PARSED_DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOY_OUTPUT}" | grep -Eo 'AKfycb[a-zA-Z0-9_-]+' | head -n 1 || true)"
+          fi
           if [ -n "${PARSED_DEPLOYMENT_ID}" ]; then
             DEPLOYMENT_ID="${PARSED_DEPLOYMENT_ID}"
           fi
