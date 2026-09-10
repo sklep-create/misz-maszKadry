@@ -64,23 +64,32 @@ function handleMessage(msg) {
         chatId,
         "🚫 Twoje konto jest zablokowane.\nSkontaktuj się z Pracodawcą aby odblokować konto."
       );
+    } else if (text === "Podaję PIN") {
+      setAwaitingPinStatus(chatId);
+      sendTelegramMessage(chatId, "Podaj PIN otrzymany od Pracodawcy w prywatnej wiadomości.");
     } else if (pinMatch) {
-      const result = authorizeUserWithPin(chatId, pinMatch[1]);
-      if (result.success) {
-        sendTelegramMessage(chatId, "✅ Autoryzacja pomyślna! Możesz teraz rejestrować czas pracy.", getMainKeyboard());
-      } else if (result.blocked) {
+      if (auth.status !== "PodajePIN") {
         sendTelegramMessage(
           chatId,
-          "🚫 ZOSTAŁEŚ ZABLOKOWANY\nPrzekroczyłeś limit prób podania PINu.\nSkontaktuj się z Pracodawcą aby odblokować konto."
+          "🤔 Nie rozumiem. Kliknij najpierw przycisk „Podaję PIN”, a potem wyślij PIN otrzymany od Pracodawcy.",
+          getPinKeyboard()
         );
       } else {
-        sendTelegramMessage(
-          chatId,
-          `❌ PIN nieprawidłowy\nPozostało Ci ${result.attemptsLeft} prób\nPodaj poprawny PIN:\n/pin 123456`
-        );
+        const result = authorizeUserWithPin(chatId, pinMatch[1]);
+        if (result.success) {
+          sendTelegramMessage(chatId, "✅ Autoryzacja pomyślna! Możesz teraz rejestrować czas pracy.", getMainKeyboard());
+        } else if (result.blocked) {
+          sendTelegramMessage(
+            chatId,
+            "🚫 ZOSTAŁEŚ ZABLOKOWANY\nPrzekroczyłeś limit prób podania PINu.\nSkontaktuj się z Pracodawcą aby odblokować konto."
+          );
+        } else {
+          sendTelegramMessage(
+            chatId,
+            `❌ PIN nieprawidłowy\nPozostało Ci ${result.attemptsLeft} prób\nPodaj poprawny PIN otrzymany od Pracodawcy.`
+          );
+        }
       }
-    } else if (text === "📌 Podaj PIN") {
-      sendTelegramMessage(chatId, "Podaj PIN w formacie:\n/pin 123456");
     } else {
       sendTelegramMessage(
         chatId,
@@ -141,7 +150,7 @@ function getEmployerKeyboard() {
 
 function getPinKeyboard() {
   return {
-    keyboard: [[{ text: "📌 Podaj PIN" }]],
+    keyboard: [[{ text: "Podaję PIN" }]],
     resize_keyboard: true
   };
 }
@@ -182,7 +191,7 @@ function handleStartCommand(msg, auth) {
   
   sendTelegramMessage(
     chatId,
-    "🔐 Twoje konto oczekuje na PIN od Pracodawcy.\nKliknij przycisk „📌 Podaj PIN” i dokończ rejestrację.",
+    "🔐 Twoje konto oczekuje na PIN od Pracodawcy.\nKliknij przycisk „Podaję PIN” i dokończ rejestrację.",
     getPinKeyboard()
   );
 }
@@ -200,7 +209,7 @@ function handleEmployerMessage(msg) {
     return;
   }
   
-  if (text === "📌 Podaj PIN" || /^\/pin\b/.test(text)) {
+  if (text === "Podaję PIN" || /^\/pin\b/.test(text)) {
     sendTelegramMessage(
       chatId,
       "👔 To konto jest oznaczone jako Pracodawca.\nPIN pracownika nie jest tutaj wymagany.",

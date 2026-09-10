@@ -21,6 +21,27 @@ function isUserAuthorized(chatId) {
 }
 
 /**
+ * Oznacza, że pracownik zadeklarował chęć podania PINu (kliknął
+ * "Podaję PIN") - bot będzie oczekiwał PINu w kolejnej wiadomości,
+ * nawet jeśli minie sporo czasu od rejestracji.
+ */
+function setAwaitingPinStatus(chatId) {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1].toString() !== chatId.toString()) continue;
+
+    const status = (data[i][6] || '').toString();
+    if (status === 'Zablokowany' || status === 'Autoryzowany') return;
+
+    sheet.getRange(i + 1, 7).setValue('PodajePIN'); // Status_Autoryzacji
+    return;
+  }
+}
+
+/**
  * Normalizuje listę Telegram ID pracodawców do unikalnych wartości numerycznych
  */
 function parseEmployerTelegramIds(rawValues) {
