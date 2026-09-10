@@ -50,7 +50,7 @@ function handleMessage(msg) {
   }
   
   const auth = isUserAuthorized(chatId);
-  const pinMatch = text.match(/^\/pin\s+(\d{6})$/);
+  const pinMatch = text.match(/^\/pin\s+(\d{6})$/) || text.match(/^(\d{6})$/);
   
   if (text === "/start") {
     handleStartCommand(msg, auth);
