@@ -51,7 +51,12 @@ function _reportResult(text, silent) {
   try {
     _showCopyableDialog("Wynik diagnostyki", text);
   } catch (e) {
-    // brak UI (np. webhook/trigger) - GitHub Actions/run w edytorze i tak zobaczą Logger.log
+    Logger.log("⚠️ Nie udało się pokazać okna z przyciskiem kopiowania: " + e.toString());
+    try {
+      SpreadsheetApp.getUi().alert(text);
+    } catch (e2) {
+      // brak UI (np. webhook/trigger) - GitHub Actions/run w edytorze i tak zobaczą Logger.log
+    }
   }
   return text;
 }
@@ -138,10 +143,14 @@ function telegramGetWebhookInfo(silent) {
     return _reportResult("❌ getWebhookInfo error:\n" + err.toString(), silent);
   }
 }
-/** Ustawia webhook na adres zapisany w Properties Service (WEBHOOK_DEPLOYMENT_URL). */
+/**
+ * Ustawia webhook na adres zapisany w Properties Service.
+ * Jeśli ustawiono TELEGRAM_WEBHOOK_PROXY_URL, użyty zostanie proxy
+ * (np. Cloudflare Worker) zamiast bezpośredniego URL Apps Script.
+ */
 function telegramSetWebhookNow() {
   try {
-    const webhookUrl = getWebhookUrl(); // przy braku URL rzuci wyjątek z instrukcją
+    const webhookUrl = getEffectiveTelegramWebhookUrl(); // przy braku URL rzuci wyjątek z instrukcją
     const result = _botApi("setWebhook", { url: webhookUrl });
     if (result.ok) {
       return _reportResult("✅ Webhook ustawiony:\n" + webhookUrl + "\n\n" + telegramGetWebhookInfo(true));

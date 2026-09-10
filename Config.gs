@@ -137,12 +137,23 @@ function getWebhookUrl() {
 }
 
 /**
+ * Zwraca URL, na który faktycznie ma wskazywać webhook Telegrama.
+ * Jeśli ustawiono TELEGRAM_WEBHOOK_PROXY_URL (np. Cloudflare Worker
+ * obchodzący przekierowanie 302 Apps Script), ma on pierwszeństwo.
+ * W przeciwnym razie używany jest bezpośredni URL wdrożenia Apps Script.
+ */
+function getEffectiveTelegramWebhookUrl() {
+  const proxyUrl = PropertiesService.getScriptProperties().getProperty('TELEGRAM_WEBHOOK_PROXY_URL');
+  return proxyUrl || getWebhookUrl();
+}
+
+/**
  * Ustawia Webhook dla Bota Telegram (Uruchomić jednorazowo)
  */
 function setupTelegramWebhook() {
   try {
     const token = getTelegramToken();
-    const webhookUrl = getWebhookUrl();
+    const webhookUrl = getEffectiveTelegramWebhookUrl();
     
     const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });

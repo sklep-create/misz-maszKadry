@@ -26,6 +26,7 @@ function onOpen() {
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
     .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
+    .addItem('🌐 Ustaw URL Proxy (Cloudflare) dla Webhooka', 'setTelegramWebhookProxyUrl')
     .addSeparator()
     .addSubMenu(diagnosticsMenu)
     .addToUi();
@@ -100,6 +101,44 @@ function setWebhookDeploymentId() {
     
     Logger.log('✅ Webhook Deployment URL został zapisany: ' + deploymentUrl);
   }
+}
+
+/**
+ * Ustawia URL proxy (np. Cloudflare Worker), który ma pośredniczyć
+ * między Telegramem a Apps Script, omijając przekierowanie 302
+ * zwracane bezpośrednio przez /exec. Zostaw puste i zatwierdź OK,
+ * żeby usunąć proxy i wrócić do bezpośredniego URL Apps Script.
+ */
+function setTelegramWebhookProxyUrl() {
+  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getScriptProperties();
+  const current = props.getProperty('TELEGRAM_WEBHOOK_PROXY_URL') || '(brak - używany bezpośredni URL Apps Script)';
+
+  const response = ui.prompt(
+    '🌐 URL Proxy dla Webhooka Telegrama\n\n' +
+    'Obecnie: ' + current + '\n\n' +
+    'Wklej URL Cloudflare Workera (np. https://xxx.workers.dev).\n' +
+    'Zostaw puste i kliknij OK, żeby usunąć proxy.',
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const proxyUrl = response.getResponseText().trim();
+
+  if (!proxyUrl) {
+    props.deleteProperty('TELEGRAM_WEBHOOK_PROXY_URL');
+    ui.alert('✅ Proxy usunięte. Webhook będzie wskazywał bezpośrednio na Apps Script.\n\nUruchom teraz: 🔗 Ustaw webhook (z zapisanych danych)');
+    return;
+  }
+
+  if (!proxyUrl.startsWith('https://')) {
+    ui.alert('❌ URL musi zaczynać się od https://');
+    return;
+  }
+
+  props.setProperty('TELEGRAM_WEBHOOK_PROXY_URL', proxyUrl);
+  ui.alert('✅ Proxy zapisane: ' + proxyUrl + '\n\nUruchom teraz: 🔗 Ustaw webhook (z zapisanych danych)');
 }
 
 function setEmployerTelegramIds() {
