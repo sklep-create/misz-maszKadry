@@ -39,32 +39,34 @@ function onOpen() {
 function setWebhookDeploymentId() {
   const ui = SpreadsheetApp.getUi();
   const response = ui.prompt(
-    '📡 Konfiguracja URL Webhook\'a (adres Web App /exec)\n\n' +
-    'Wklej tutaj adres Web App z wdrożenia Apps Script:\n' +
-    '(musi kończyć się na /exec, np.: https://script.google.com/macros/s/[ID]/exec)',
+    '📡 Konfiguracja URL dla przycisku Mini App\n\n' +
+    'Wklej adres Web App z wdrożenia Apps Script (.../exec),\n' +
+    'albo URL proxy (np. Cloudflare Worker), jeśli go używasz:\n' +
+    'np. https://script.google.com/macros/s/[ID]/exec\n' +
+    'lub https://twoj-worker.workers.dev',
     ui.ButtonSet.OK_CANCEL
   );
-  
+
   if (response.getSelectedButton() === ui.Button.OK) {
     const deploymentUrl = response.getResponseText().trim();
-    
+
     // Validacja URL
     if (!deploymentUrl || deploymentUrl.length < 20) {
       ui.alert('❌ URL jest zbyt krótki. Upewnij się, że wklejasz pełny link.');
       return;
     }
-    
-    if (!deploymentUrl.includes('script.google.com')) {
-      ui.alert('❌ URL musi zawierać "script.google.com"');
+
+    if (!deploymentUrl.startsWith('https://')) {
+      ui.alert('❌ URL musi zaczynać się od "https://"');
       return;
     }
-    
-    // Jedynym poprawnym adresem, na który Telegram może wysyłać wiadomości, jest adres Web App /exec
-    if (!deploymentUrl.includes('/exec')) {
-      ui.alert('❌ URL musi kończyć się na "/exec" (adres Web App).\n\nPrzykład:\nhttps://script.google.com/macros/s/[ID]/exec\n\nTo jedyny adres, na który Telegram wysyła wiadomości (webhook).');
+
+    // Adres Apps Script musi kończyć się na /exec - inne domeny (np. proxy) są dozwolone bez tego wymogu.
+    if (deploymentUrl.includes('script.google.com') && !deploymentUrl.includes('/exec')) {
+      ui.alert('❌ URL Apps Script musi kończyć się na "/exec" (adres Web App).\n\nPrzykład:\nhttps://script.google.com/macros/s/[ID]/exec');
       return;
     }
-    
+
     // Zapisz URL w Properties Service
     PropertiesService.getScriptProperties().setProperty('WEBHOOK_DEPLOYMENT_URL', deploymentUrl);
     
