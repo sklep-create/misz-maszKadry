@@ -14,7 +14,7 @@ function registerEventFromMiniApp(params) {
 
     const verification = verifyTelegramInitData(initData, getTelegramToken());
     if (!verification.ok) {
-      return { ok: false, error: "Invalid initData" };
+      return { ok: false, error: verification.error || "Invalid initData" };
     }
 
     const auth = isUserAuthorized(verification.userId);
@@ -51,7 +51,7 @@ function getMiniAppDashboard(params) {
 
     const verification = verifyTelegramInitData(initData, getTelegramToken());
     if (!verification.ok) {
-      return { ok: false, error: "Invalid initData" };
+      return { ok: false, error: verification.error || "Invalid initData" };
     }
 
     const auth = isUserAuthorized(verification.userId);
@@ -89,7 +89,7 @@ function submitCorrectionFromMiniApp(params) {
 
     const verification = verifyTelegramInitData(initData, getTelegramToken());
     if (!verification.ok) {
-      return { ok: false, error: "Invalid initData" };
+      return { ok: false, error: verification.error || "Invalid initData" };
     }
 
     const auth = isUserAuthorized(verification.userId);

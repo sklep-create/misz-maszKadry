@@ -77,7 +77,7 @@ function handleMessage(msg) {
       } else {
         const result = authorizeUserWithPin(chatId, pinMatch[1]);
         if (result.success) {
-          sendTelegramMessage(chatId, "✅ Autoryzacja pomyślna! Możesz teraz rejestrować czas pracy.", getMainKeyboard());
+          sendTelegramMessage(chatId, "✅ Autoryzacja pomyślna! Możesz teraz rejestrować czas pracy.", getMiniAppInlineKeyboard());
         } else if (result.blocked) {
           sendTelegramMessage(
             chatId,
@@ -114,31 +114,32 @@ function handleMessage(msg) {
     saveCorrectionRequest(auth.employeeId, details);
     sendTelegramMessage(chatId, "📩 Wniosek o korektę został przesłany do akceptacji pracodawcy.");
   } else {
-    sendTelegramMessage(chatId, "Wybierz opcję z menu poniżej:", getMainKeyboard());
+    sendTelegramMessage(chatId, "Wybierz opcję z menu poniżej:", getMiniAppInlineKeyboard());
   }
 }
 
-function getMainKeyboard() {
-  const keyboard = [];
-
+/**
+ * Klawiatura inline z przyciskiem Mini App.
+ * WAŻNE: musi być inline (dołączona do wiadomości), nie zwykłą klawiaturą
+ * (KeyboardButton) - tylko przyciski inline (i Menu bota) dostają od
+ * Telegrama podpisane initData potrzebne do weryfikacji backendu.
+ * Zwykła klawiatura z web_app wysyła dane inną ścieżką (sendData) i
+ * initData zostaje puste.
+ */
+function getMiniAppInlineKeyboard() {
   try {
-    keyboard.push([
-      {
-        text: "📱 Otwórz Panel Pracownika",
-        web_app: { url: getWebhookDeploymentUrl() + "?page=miniapp" }
-      }
-    ]);
+    return {
+      inline_keyboard: [[
+        {
+          text: "📱 Otwórz Panel Pracownika",
+          web_app: { url: getWebhookDeploymentUrl() + "?page=miniapp" }
+        }
+      ]]
+    };
   } catch (err) {
     Logger.log("⚠️ Mini App URL niedostępny: " + err.toString());
-    // Awaryjnie (brak skonfigurowanego URL Mini App) - stare przyciski tekstowe.
-    keyboard.push([{ text: "▶️ START" }, { text: "⏹️ STOP" }]);
-    keyboard.push([{ text: "✏️ Zgłoś Korektę" }, { text: "📅 Swój Grafik" }]);
+    return null;
   }
-
-  return {
-    keyboard: keyboard,
-    resize_keyboard: true
-  };
 }
 
 function getEmployerKeyboard() {
@@ -185,7 +186,7 @@ function handleStartCommand(msg, auth) {
   }
   
   if (auth.authorized) {
-    sendTelegramMessage(chatId, "✅ Jesteś już autoryzowany. Wybierz opcję z menu poniżej:", getMainKeyboard());
+    sendTelegramMessage(chatId, "✅ Jesteś już autoryzowany. Wybierz opcję z menu poniżej:", getMiniAppInlineKeyboard());
     return;
   }
   
