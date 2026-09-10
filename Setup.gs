@@ -4,28 +4,30 @@
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  
+
+  const diagnosticsMenu = ui.createMenu('🛠️ Narzędzia Bota (diagnostyka)')
+    .addItem('🔍 Pełna diagnostyka bota', 'runFullBotDiagnostics')
+    .addItem('🤖 Sprawdź token bota (getMe)', 'telegramGetMe')
+    .addItem('📡 Pokaż webhook info', 'telegramGetWebhookInfo')
+    .addItem('🔗 Ustaw webhook (z zapisanych danych)', 'telegramSetWebhookNow')
+    .addItem('🧹 Wyczyść pendną kolejkę (flush)', 'telegramFlushUpdates')
+    .addItem('🗑️ USUŃ webhook (reset)', 'telegramResetWebhook')
+    .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
     .addItem('🔐 Inicjalizuj sekretne dane (PIERWSZE URUCHOMIENIE)', 'initializeSecrets')
     .addItem('🗂️ Zapamiętaj ID tego Arkusza (wymagane dla bota)', 'setSpreadsheetId')
-    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')    
-    .addSeparator()    
+    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
+    .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
-    .addSeparator()    
+    .addSeparator()
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
     .addSeparator()
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
     .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
     .addSeparator()
-    .addSubMenu(ui.createMenu('🛠️ Narzędzia Bota (diagnostyka)'))
-      .addItem('🔍 Pełna diagnostyka bota', 'runFullBotDiagnostics')
-      .addItem('🤖 Sprawdź token bota (getMe)', 'telegramGetMe')
-      .addItem('📡 Pokaż webhook info', 'telegramGetWebhookInfo')
-      .addItem('🔗 Ustaw webhook (z zapisanych danych)', 'telegramSetWebhookNow')
-      .addItem('🧹 Wyczyść pendną kolejkę (flush)', 'telegramFlushUpdates')
-      .addItem('🗑️ USUŃ webhook (reset)', 'telegramResetWebhook')
-      .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage')
+    .addSubMenu(diagnosticsMenu)
     .addToUi();
 }
 
