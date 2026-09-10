@@ -24,9 +24,13 @@ function verifyTelegramInitData(initData, botToken) {
       .map(key => `${key}=${data[key]}`)
       .join("\n");
 
+    // Utilities.computeHmacSha256Signature wymaga, żeby value i key były
+    // tego samego typu (oba String albo oba Byte[]) - stąd konwersja
+    // dataCheckString na bajty UTF-8, żeby pasowało do secretKey (Byte[]).
     const secretKey = Utilities.computeHmacSha256Signature(botToken, "WebAppData");
+    const dataCheckStringBytes = Utilities.newBlob(dataCheckString).getBytes();
     const calculatedHash = bytesToHexString(
-      Utilities.computeHmacSha256Signature(dataCheckString, secretKey)
+      Utilities.computeHmacSha256Signature(dataCheckStringBytes, secretKey)
     );
 
     if (calculatedHash !== receivedHash) {
