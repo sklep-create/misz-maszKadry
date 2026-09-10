@@ -119,13 +119,10 @@ function handleMessage(msg) {
 }
 
 function getMainKeyboard() {
-  const keyboard = [
-    [{ text: "▶️ START" }, { text: "⏹️ STOP" }],
-    [{ text: "✏️ Zgłoś Korektę" }, { text: "📅 Swój Grafik" }]
-  ];
+  const keyboard = [];
 
   try {
-    keyboard.unshift([
+    keyboard.push([
       {
         text: "📱 Otwórz Panel Pracownika",
         web_app: { url: getWebhookDeploymentUrl() + "?page=miniapp" }
@@ -133,6 +130,9 @@ function getMainKeyboard() {
     ]);
   } catch (err) {
     Logger.log("⚠️ Mini App URL niedostępny: " + err.toString());
+    // Awaryjnie (brak skonfigurowanego URL Mini App) - stare przyciski tekstowe.
+    keyboard.push([{ text: "▶️ START" }, { text: "⏹️ STOP" }]);
+    keyboard.push([{ text: "✏️ Zgłoś Korektę" }, { text: "📅 Swój Grafik" }]);
   }
 
   return {
