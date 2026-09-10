@@ -73,11 +73,38 @@ async function handleMiniAppOrPage(request) {
     const contentType = gasResponse.headers.get("Content-Type") || "text/plain; charset=utf-8";
     const body = await gasResponse.text();
 
-    return new Response(body, {
+    // Odpowiedzi HtmlService (strony) Google owija we własny "wrapper" z
+    // paskiem ostrzeżeń i ładuje właściwą treść w ukrytym iframe zamiast
+    // prawdziwego przekierowania 302. Wyciągamy prawdziwy HTML wprost
+    // z tego wrappera, żeby ominąć pasek i iframe.
+    const extracted = contentType.includes("text/html") ? extractUserHtml(body) : null;
+
+    return new Response(extracted || body, {
       status: gasResponse.status,
-      headers: { "Content-Type": contentType }
+      headers: { "Content-Type": extracted ? "text/html; charset=utf-8" : contentType }
     });
   } catch (err) {
     return new Response("Błąd proxy: " + err, { status: 502 });
+  }
+}
+
+/**
+ * Wyciąga rzeczywisty HTML strony z wrappera goog.script.init(...),
+ * jeśli odpowiedź nim jest. Zwraca null, gdy nie da się wyciągnąć
+ * (np. format się zmienił) - wtedy używana jest oryginalna treść.
+ */
+function extractUserHtml(html) {
+  try {
+    const match = html.match(/goog\.script\.init\("((?:[^"\\]|\\.)*)"/);
+    if (!match) return null;
+
+    const jsStringLiteral = '"' + match[1] + '"';
+    const decodedJson = Function('"use strict"; return (' + jsStringLiteral + ')')();
+    const payload = JSON.parse(decodedJson);
+
+    return payload && typeof payload.userHtml === "string" ? payload.userHtml : null;
+  } catch (err) {
+    console.error("Nie udało się wyciągnąć userHtml: " + err);
+    return null;
   }
 }
