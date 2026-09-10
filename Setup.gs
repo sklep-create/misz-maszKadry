@@ -15,6 +15,11 @@ function onOpen() {
     .addItem('🗑️ USUŃ webhook (reset)', 'telegramResetWebhook')
     .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage');
 
+  const businessProfileMenu = ui.createMenu('🏢 Google Wizytówka')
+    .addItem('🔍 Znajdź lokalizację Google Wizytówki', 'listGoogleBusinessAccountsAndLocations')
+    .addItem('⬇️ Pobierz godziny z Google Wizytówki', 'pullHoursFromGoogleBusinessProfile')
+    .addItem('⬆️ Wyślij godziny do Google Wizytówki', 'pushHoursToGoogleBusinessProfile');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
     .addItem('🔐 Inicjalizuj sekretne dane (PIERWSZE URUCHOMIENIE)', 'initializeSecrets')
@@ -30,6 +35,7 @@ function onOpen() {
     .addItem('🌐 Ustaw URL Proxy (Cloudflare) dla Webhooka', 'setTelegramWebhookProxyUrl')
     .addSeparator()
     .addSubMenu(diagnosticsMenu)
+    .addSubMenu(businessProfileMenu)
     .addToUi();
 }
 
