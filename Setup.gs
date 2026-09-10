@@ -11,6 +11,7 @@ function onOpen() {
     .addItem('📡 Pokaż webhook info', 'telegramGetWebhookInfo')
     .addItem('🔗 Ustaw webhook (z zapisanych danych)', 'telegramSetWebhookNow')
     .addItem('🧹 Wyczyść pendną kolejkę (flush)', 'telegramFlushUpdates')
+    .addItem('☰ Ustaw przycisk Menu (Panel Pracownika)', 'telegramSetMenuButton')
     .addItem('🗑️ USUŃ webhook (reset)', 'telegramResetWebhook')
     .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage');
 

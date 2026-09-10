@@ -12,6 +12,7 @@
  *  - telegramResetWebhook()       - USUWA webhook (Telegram wraca do long-polling)
  *  - telegramSendTestMessage()    - wysyła wiadomość testową na podany ChatID
  *  - telegramFlushUpdates()       - czyści kolejkę pendnych update'ow
+ *  - telegramSetMenuButton()      - ustawia stały przycisk Menu (obok pola wiadomości) na Panel Pracownika
  */
 
 /** Pobiera token bota albo rzuca wyjątek z jasnym komunikatem. */
@@ -278,4 +279,32 @@ function runFullBotDiagnostics() {
   }
 
   return _reportResult(reports.join("\n"));
+}
+
+/**
+ * Ustawia stały przycisk Menu (obok pola wiadomości, jak w widoku z
+ * dokumentacji Telegrama) na otwieranie Panelu Pracownika. W przeciwieństwie
+ * do zwykłej klawiatury (KeyboardButton.web_app), przycisk Menu dostaje
+ * pełne, podpisane initData - dokładnie tak jak przycisk inline.
+ * Ustawiany raz, obowiązuje domyślnie we wszystkich czatach prywatnych.
+ */
+function telegramSetMenuButton() {
+  try {
+    const webAppUrl = getWebhookDeploymentUrl() + "?page=miniapp";
+    const result = _botApi("setChatMenuButton", {
+      menu_button: {
+        type: "web_app",
+        text: "Otwórz Panel",
+        web_app: { url: webAppUrl }
+      }
+    });
+
+    if (result.ok) {
+      return _reportResult("✅ Przycisk Menu ustawiony na: " + webAppUrl);
+    }
+    return _reportResult("❌ setChatMenuButton failed:\n" + JSON.stringify(result));
+  } catch (err) {
+    return _reportResult("❌ Błąd setChatMenuButton:\n" + err.toString() +
+      "\n\nSprawdź: ⚙️ System Kadrowy → 📡 Ustaw Deployment ID dla Webhook'a");
+  }
 }
