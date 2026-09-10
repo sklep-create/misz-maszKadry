@@ -128,7 +128,8 @@ function setTelegramWebhookProxyUrl() {
 
   if (!proxyUrl) {
     props.deleteProperty('TELEGRAM_WEBHOOK_PROXY_URL');
-    ui.alert('✅ Proxy usunięte. Webhook będzie wskazywał bezpośrednio na Apps Script.\n\nUruchom teraz: 🔗 Ustaw webhook (z zapisanych danych)');
+    ui.alert('✅ Proxy usunięte. Webhook będzie wskazywał bezpośrednio na Apps Script.');
+    telegramSetWebhookNow();
     return;
   }
 
@@ -138,7 +139,7 @@ function setTelegramWebhookProxyUrl() {
   }
 
   props.setProperty('TELEGRAM_WEBHOOK_PROXY_URL', proxyUrl);
-  ui.alert('✅ Proxy zapisane: ' + proxyUrl + '\n\nUruchom teraz: 🔗 Ustaw webhook (z zapisanych danych)');
+  telegramSetWebhookNow();
 }
 
 function setEmployerTelegramIds() {
