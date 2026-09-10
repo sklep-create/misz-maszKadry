@@ -40,21 +40,51 @@ function _botApi(method, params) {
 }
 
 /**
- * Zgłasza wynik funkcji: zapisuje go do logów i pokazuje w okienku,
- * o ile wykonywana jest w kontekście z dostępnym UI (arka Google).
+ * Zgłasza wynik funkcji: zapisuje go do logów i pokazuje w okienku
+ * z przyciskiem kopiowania, o ile wykonywana jest w kontekście z
+ * dostępnym UI (arka Google). Przy silent=true pomija okienko
+ * (używane, gdy wynik jest tylko składową większego raportu).
  */
-function _reportResult(text) {
+function _reportResult(text, silent) {
   Logger.log(text);
+  if (silent) return text;
   try {
-    SpreadsheetApp.getUi().alert(text);
+    _showCopyableDialog("Wynik diagnostyki", text);
   } catch (e) {
     // brak UI (np. webhook/trigger) - GitHub Actions/run w edytorze i tak zobaczą Logger.log
   }
   return text;
 }
 
+/** Pokazuje tekst w oknie z polem do zaznaczenia i przyciskiem "Kopiuj". */
+function _showCopyableDialog(title, text) {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  const html = HtmlService.createHtmlOutput(
+    '<textarea id="txt" style="width:100%;height:340px;font-family:monospace;' +
+    'font-size:12px;box-sizing:border-box;" readonly>' + escaped + '</textarea>' +
+    '<div style="margin-top:10px;text-align:right;">' +
+    '<button onclick="copyText()" style="padding:8px 16px;font-size:13px;cursor:pointer;">📋 Kopiuj komunikat</button>' +
+    '</div>' +
+    '<script>' +
+    'function copyText() {' +
+    '  const el = document.getElementById("txt");' +
+    '  el.select();' +
+    '  el.setSelectionRange(0, 999999);' +
+    '  document.execCommand("copy");' +
+    '}' +
+    '</script>'
+  ).setWidth(520).setHeight(440);
+
+  SpreadsheetApp.getUi().showModalDialog(html, title);
+}
+
 /** Sprawdza czy token bota jest poprawny (getMe). */
-function telegramGetMe() {
+function telegramGetMe(silent) {
   try {
     const info = _botApi("getMe");
     if (info.ok) {
@@ -63,20 +93,20 @@ function telegramGetMe() {
         "Nazwa: " + (b.first_name || "") + "\n" +
         "Username: @" + (b.username || "brak") + "\n" +
         "ID bota: " + b.id + "\n\n" +
-        "✅ Token poprawny.");
+        "✅ Token poprawny.", silent);
     }
-    return _reportResult("❌ getMe nie powiodło się:\n" + JSON.stringify(info));
+    return _reportResult("❌ getMe nie powiodło się:\n" + JSON.stringify(info), silent);
   } catch (err) {
-    return _reportResult("❌ Telegram nieosiągalny lub token błędny:\n" + err.toString());
+    return _reportResult("❌ Telegram nieosiągalny lub token błędny:\n" + err.toString(), silent);
   }
 }
 
 /** Pokazuje aktualny webhook + ewentualne błędy Telegrama. */
-function telegramGetWebhookInfo() {
+function telegramGetWebhookInfo(silent) {
   try {
     const info = _botApi("getWebhookInfo");
     if (!info.ok) {
-      return _reportResult("❌ getWebhookInfo error:\n" + JSON.stringify(info));
+      return _reportResult("❌ getWebhookInfo error:\n" + JSON.stringify(info), silent);
     }
     const w = info.result;
     const lines = [
@@ -103,9 +133,9 @@ function telegramGetWebhookInfo() {
         "deployment wymagający logowania zamiast publicznego /exec, " +
         "lub webhook wskazujący adres innego projektu.");
     }
-    return _reportResult(lines.join("\n"));
+    return _reportResult(lines.join("\n"), silent);
   } catch (err) {
-    return _reportResult("❌ getWebhookInfo error:\n" + err.toString());
+    return _reportResult("❌ getWebhookInfo error:\n" + err.toString(), silent);
   }
 }
 /** Ustawia webhook na adres zapisany w Properties Service (WEBHOOK_DEPLOYMENT_URL). */
@@ -114,7 +144,7 @@ function telegramSetWebhookNow() {
     const webhookUrl = getWebhookUrl(); // przy braku URL rzuci wyjątek z instrukcją
     const result = _botApi("setWebhook", { url: webhookUrl });
     if (result.ok) {
-      return _reportResult("✅ Webhook ustawiony:\n" + webhookUrl + "\n\n" + telegramGetWebhookInfo());
+      return _reportResult("✅ Webhook ustawiony:\n" + webhookUrl + "\n\n" + telegramGetWebhookInfo(true));
     }
     return _reportResult("❌ setWebhook failed:\n" + JSON.stringify(result));
   } catch (err) {
@@ -142,7 +172,7 @@ function telegramResetWebhook() {
   try {
     const result = _botApi("deleteWebhook", { drop_pending_updates: true });
     if (result.ok) {
-      return _reportResult("✅ Webhook usunięty, pending updates odrzucone.\n\n" + telegramGetWebhookInfo());
+      return _reportResult("✅ Webhook usunięty, pending updates odrzucone.\n\n" + telegramGetWebhookInfo(true));
     }
     return _reportResult("❌ deleteWebhook failed:\n" + JSON.stringify(result));
   } catch (err) {
@@ -197,7 +227,7 @@ function runFullBotDiagnostics() {
   if (token) {
     reports.push("");
     reports.push("--- getMe ---");
-    reports.push(telegramGetMe());
+    reports.push(telegramGetMe(true));
   }
 
   // 3. Webhook URL z Properties
@@ -209,7 +239,7 @@ function runFullBotDiagnostics() {
   if (token) {
     reports.push("");
     reports.push("--- getWebhookInfo ---");
-    reports.push(telegramGetWebhookInfo());
+    reports.push(telegramGetWebhookInfo(true));
   }
 
   // 5. Format adresu
