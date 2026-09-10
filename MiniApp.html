@@ -9,11 +9,13 @@
       :root {
         --bg: #17212b;
         --surface: #1f2a36;
+        --surface-2: #26323f;
         --text: #ffffff;
         --hint: #8e9aa7;
         --accent: #2ea6ff;
         --start: #31c46c;
         --stop: #ff5a5f;
+        --border: #33414f;
       }
 
       * {
@@ -26,15 +28,13 @@
         background: var(--bg);
         color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
+        padding: 20px 16px 40px;
       }
 
       .panel {
         width: 100%;
-        max-width: 420px;
+        max-width: 460px;
+        margin: 0 auto;
         background: var(--surface);
         border-radius: 18px;
         padding: 22px;
@@ -47,9 +47,29 @@
       }
 
       .subtitle {
-        margin: 0 0 20px 0;
+        margin: 0 0 16px 0;
         color: var(--hint);
         font-size: 14px;
+      }
+
+      .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface-2);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .status-badge.working {
+        color: #77f5a9;
+      }
+
+      .status-badge.idle {
+        color: var(--hint);
       }
 
       .button-grid {
@@ -73,8 +93,8 @@
       }
 
       .big-btn:disabled {
-        opacity: 0.65;
-        cursor: wait;
+        opacity: 0.4;
+        cursor: not-allowed;
       }
 
       .start-btn {
@@ -98,25 +118,187 @@
       .status.error {
         color: #ff9ea0;
       }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 22px 0 16px;
+      }
+
+      .tab-btn {
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--hint);
+        border-radius: 10px;
+        padding: 10px 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .tab-btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        background: var(--surface-2);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .list-item .label {
+        font-weight: 600;
+      }
+
+      .list-item .meta {
+        color: var(--hint);
+        text-align: right;
+      }
+
+      .empty-hint {
+        color: var(--hint);
+        font-size: 13px;
+        text-align: center;
+        padding: 14px 0;
+      }
+
+      .form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .form label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--hint);
+      }
+
+      .form input,
+      .form textarea {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+      }
+
+      .form input:focus,
+      .form textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .submit-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--accent);
+        cursor: pointer;
+      }
+
+      .submit-btn:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
     </style>
   </head>
   <body>
     <main class="panel">
       <h1>Panel Pracownika</h1>
-      <p class="subtitle">Rejestruj czas pracy bezpośrednio w Telegramie.</p>
+      <p class="subtitle" id="employeeName">Rejestruj czas pracy bezpośrednio w Telegramie.</p>
+
+      <div id="statusBadge" class="status-badge idle">⏳ Ładowanie statusu…</div>
+
       <div class="button-grid">
         <button id="startBtn" class="big-btn start-btn">▶️ START</button>
         <button id="stopBtn" class="big-btn stop-btn">⏹️ STOP</button>
       </div>
       <div id="status" class="status"></div>
+
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="historia">📜 Historia</button>
+        <button class="tab-btn" data-tab="grafik">📅 Grafik</button>
+        <button class="tab-btn" data-tab="korekta">✏️ Korekta</button>
+      </nav>
+
+      <section id="tab-historia" class="tab-content active">
+        <div id="historyList" class="list"><p class="empty-hint">Ładowanie…</p></div>
+      </section>
+
+      <section id="tab-grafik" class="tab-content">
+        <div id="scheduleList" class="list"><p class="empty-hint">Ładowanie…</p></div>
+      </section>
+
+      <section id="tab-korekta" class="tab-content">
+        <form id="correctionForm" class="form">
+          <label>
+            Data
+            <input type="date" id="corrDate" required>
+          </label>
+          <label>
+            Godzina rozpoczęcia pracy
+            <input type="time" id="corrTime" required>
+          </label>
+          <label>
+            Opis (opcjonalnie)
+            <textarea id="corrNote" rows="3" placeholder="np. zapomniałem kliknąć START"></textarea>
+          </label>
+          <button type="submit" id="corrSubmitBtn" class="submit-btn">Wyślij wniosek o korektę</button>
+        </form>
+        <div id="corrStatus" class="status"></div>
+      </section>
     </main>
 
     <script>
       (function () {
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        const initData = tg ? tg.initData || "" : "";
+
         const statusEl = document.getElementById("status");
         const startBtn = document.getElementById("startBtn");
         const stopBtn = document.getElementById("stopBtn");
+        const statusBadge = document.getElementById("statusBadge");
+        const employeeNameEl = document.getElementById("employeeName");
+        const historyList = document.getElementById("historyList");
+        const scheduleList = document.getElementById("scheduleList");
+        const correctionForm = document.getElementById("correctionForm");
+        const corrDate = document.getElementById("corrDate");
+        const corrTime = document.getElementById("corrTime");
+        const corrNote = document.getElementById("corrNote");
+        const corrSubmitBtn = document.getElementById("corrSubmitBtn");
+        const corrStatus = document.getElementById("corrStatus");
+
+        const EVENT_ICON = { START: "▶️", STOP: "⏹️" };
+        const DAY_ICON = { Praca: "💼", Wolne: "🌤️", Urlop: "🏖️", Chorobowe: "🤒" };
+        const DAY_NAMES = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
 
         if (tg) {
           tg.ready();
@@ -124,57 +306,176 @@
           applyTelegramTheme(tg.themeParams || {});
         }
 
-        startBtn.addEventListener("click", function () {
-          submitEvent("START");
+        document.querySelectorAll(".tab-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+            btn.classList.add("active");
+            document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+          });
         });
 
-        stopBtn.addEventListener("click", function () {
-          submitEvent("STOP");
+        corrDate.value = new Date().toISOString().slice(0, 10);
+
+        startBtn.addEventListener("click", function () { submitEvent("START"); });
+        stopBtn.addEventListener("click", function () { submitEvent("STOP"); });
+        correctionForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          submitCorrection();
         });
+
+        loadDashboard();
 
         function submitEvent(type) {
           setLoading(true);
           setStatus("Rejestrowanie...", "");
           haptic("impact", "light");
 
-          const url = new URL(window.location.href);
-          url.search = "";
-          url.searchParams.set("action", "registerEvent");
-          url.searchParams.set("type", type);
-          url.searchParams.set("initData", tg ? tg.initData || "" : "");
-
-          fetch(url.toString(), { method: "GET" })
-            .then(function (response) { return response.json(); })
+          callApi("registerEvent", { type: type, initData: initData })
             .then(function (result) {
               if (result && result.ok) {
                 const text = (result.message || "✅ Zapisano") + (result.time ? (" o " + result.time) : "");
                 setStatus(text, "success");
                 haptic("notification", "success");
-                safeAlert(text);
-                setTimeout(function () {
-                  if (tg && tg.close) tg.close();
-                }, 1300);
+                loadDashboard();
                 return;
               }
 
               const errorText = result && result.error ? result.error : "Nie udało się zapisać zdarzenia.";
               setStatus("❌ " + errorText, "error");
               haptic("notification", "error");
-              safeAlert(errorText);
             })
             .catch(function () {
               setStatus("❌ Błąd połączenia z serwerem.", "error");
               haptic("notification", "error");
-              safeAlert("Błąd połączenia z serwerem.");
             })
             .finally(function () {
               setLoading(false);
             });
         }
 
+        function submitCorrection() {
+          corrSubmitBtn.disabled = true;
+          setCorrStatus("Wysyłanie...", "");
+
+          callApi("submitCorrection", {
+            initData: initData,
+            date: corrDate.value,
+            time: corrTime.value,
+            note: corrNote.value
+          })
+            .then(function (result) {
+              if (result && result.ok) {
+                setCorrStatus(result.message || "✅ Wniosek wysłany", "success");
+                haptic("notification", "success");
+                correctionForm.reset();
+                corrDate.value = new Date().toISOString().slice(0, 10);
+                return;
+              }
+
+              const errorText = result && result.error ? result.error : "Nie udało się wysłać wniosku.";
+              setCorrStatus("❌ " + errorText, "error");
+              haptic("notification", "error");
+            })
+            .catch(function () {
+              setCorrStatus("❌ Błąd połączenia z serwerem.", "error");
+              haptic("notification", "error");
+            })
+            .finally(function () {
+              corrSubmitBtn.disabled = false;
+            });
+        }
+
+        function loadDashboard() {
+          callApi("getMiniAppDashboard", { initData: initData })
+            .then(function (result) {
+              if (!result || !result.ok) {
+                setStatusBadge("idle", "⚠️ " + ((result && result.error) || "Nie udało się pobrać danych."));
+                return;
+              }
+
+              if (result.employeeName) {
+                employeeNameEl.textContent = "Cześć, " + result.employeeName + "!";
+              }
+
+              renderStatus(result.status || {});
+              renderHistory(result.history || []);
+              renderSchedule(result.schedule || []);
+            })
+            .catch(function () {
+              setStatusBadge("idle", "⚠️ Błąd połączenia z serwerem.");
+            });
+        }
+
+        function renderStatus(status) {
+          if (status.working) {
+            setStatusBadge("working", "🟢 W pracy od " + (status.lastEventTime || "?"));
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+          } else {
+            const suffix = status.lastEventTime ? (" (ostatnio: " + status.lastEventTime + ")") : "";
+            setStatusBadge("idle", "⚪ Poza pracą" + suffix);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+          }
+        }
+
+        function renderHistory(history) {
+          if (!history.length) {
+            historyList.innerHTML = '<p class="empty-hint">Brak zarejestrowanych zdarzeń.</p>';
+            return;
+          }
+
+          historyList.innerHTML = history.map(function (item) {
+            const icon = EVENT_ICON[item.type] || "•";
+            return '<div class="list-item">' +
+              '<span class="label">' + icon + ' ' + escapeHtml(item.type) + '</span>' +
+              '<span class="meta">' + escapeHtml(item.date) + ' ' + escapeHtml((item.time || "").slice(0, 5)) + '</span>' +
+              '</div>';
+          }).join("");
+        }
+
+        function renderSchedule(schedule) {
+          if (!schedule.length) {
+            scheduleList.innerHTML = '<p class="empty-hint">Brak zaplanowanych dni.</p>';
+            return;
+          }
+
+          scheduleList.innerHTML = schedule.map(function (item) {
+            const icon = DAY_ICON[item.type] || "📌";
+            const dayName = getDayName(item.date);
+            const hours = (item.start && item.stop) ? (item.start.slice(0, 5) + " – " + item.stop.slice(0, 5)) : "";
+            return '<div class="list-item">' +
+              '<span class="label">' + icon + ' ' + escapeHtml(item.date) + (dayName ? (" (" + dayName + ")") : "") + '</span>' +
+              '<span class="meta">' + escapeHtml(item.type) + (hours ? (" · " + escapeHtml(hours)) : "") + '</span>' +
+              '</div>';
+          }).join("");
+        }
+
+        function getDayName(dateStr) {
+          const parsed = new Date(dateStr + "T00:00:00");
+          if (isNaN(parsed.getTime())) return "";
+          return DAY_NAMES[parsed.getDay()];
+        }
+
+        function callApi(action, extraParams) {
+          const url = new URL(window.location.href);
+          url.search = "";
+          url.searchParams.set("action", action);
+          Object.keys(extraParams).forEach(function (key) {
+            url.searchParams.set(key, extraParams[key] == null ? "" : extraParams[key]);
+          });
+
+          return fetch(url.toString(), { method: "GET" }).then(function (response) {
+            return response.json();
+          });
+        }
+
         function setLoading(loading) {
-          startBtn.disabled = loading;
-          stopBtn.disabled = loading;
+          if (loading) {
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+          }
         }
 
         function setStatus(message, className) {
@@ -182,10 +483,21 @@
           statusEl.className = "status" + (className ? " " + className : "");
         }
 
-        function safeAlert(text) {
-          if (tg && tg.showAlert) {
-            tg.showAlert(text);
-          }
+        function setCorrStatus(message, className) {
+          corrStatus.textContent = message || "";
+          corrStatus.className = "status" + (className ? " " + className : "");
+        }
+
+        function setStatusBadge(state, text) {
+          statusBadge.textContent = text;
+          statusBadge.className = "status-badge " + state;
+        }
+
+        function escapeHtml(value) {
+          return (value == null ? "" : value.toString())
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
         }
 
         function haptic(type, style) {

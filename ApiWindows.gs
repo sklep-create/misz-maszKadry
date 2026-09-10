@@ -21,6 +21,10 @@ function doGet(e) {
     };
   } else if (action === "registerEvent") {
     responseData = registerEventFromMiniApp(params);
+  } else if (action === "getMiniAppDashboard") {
+    responseData = getMiniAppDashboard(params);
+  } else if (action === "submitCorrection") {
+    responseData = submitCorrectionFromMiniApp(params);
   }
 
   return ContentService.createTextOutput(JSON.stringify(responseData))
