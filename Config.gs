@@ -70,12 +70,96 @@ function showTokenInputDialog() {
 }
 
 /**
- * Pobiera aktualny PIN z zakładki 'Ustawienia' (Komórka B2)
+ * Zwraca numer kolumny (1-based) danego nagłówka w arkuszu Ustawienia,
+ * albo -1 jeśli nagłówek nie istnieje. Arkusz Ustawienia jest kolumnowy:
+ * wiersz 1 to nazwy ustawień, wartości pod spodem (jeden lub więcej
+ * wierszy, w zależności od ustawienia - np. PRACODAWCY_TELEGRAM_IDS
+ * czy "dni pracy" mają po jednej wartości na wiersz).
  */
-function getSystemPin() {
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
-  return sheet.getRange("B2").getValue().toString().trim();
+function getSettingsColumnIndex(headerName) {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const lastColumn = sheet.getLastColumn();
+  if (lastColumn < 1) return -1;
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const index = headers.findIndex(function (h) {
+    return (h || '').toString().trim() === headerName;
+  });
+
+  return index === -1 ? -1 : index + 1;
+}
+
+/** Pojedyncza wartość ustawienia (wiersz 2) po nazwie nagłówka kolumny. */
+function getSettingValue(headerName) {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const col = getSettingsColumnIndex(headerName);
+  if (col === -1) return '';
+  return sheet.getRange(2, col).getValue();
+}
+
+/** Dobowa norma godzin dla pracownika UoP (kolumna NORMA_ETAT_UOP), domyślnie 8. */
+function getNormaEtatUop() {
+  const value = Number(getSettingValue('NORMA_ETAT_UOP'));
+  return value > 0 ? value : 8;
+}
+
+/** Dobowa norma godzin dla pracownika OzN (kolumna NORMA_OZN_UOP), domyślnie 7. */
+function getNormaOznUop() {
+  const value = Number(getSettingValue('NORMA_OZN_UOP'));
+  return value > 0 ? value : 7;
+}
+
+/**
+ * Tygodniowe godziny otwarcia firmy z tabeli "dni pracy" / "godziny pracy"
+ * w arkuszu Ustawienia. Zwraca obiekt {NazwaDnia: "8.30 - 15.30" | null},
+ * gdzie null oznacza dzień zamknięty (pusta komórka godzin).
+ */
+function getWeeklyWorkingHours() {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const dayCol = getSettingsColumnIndex('dni pracy');
+  const hoursCol = getSettingsColumnIndex('godziny pracy');
+  if (dayCol === -1 || hoursCol === -1) return {};
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+
+  const days = sheet.getRange(2, dayCol, lastRow - 1, 1).getValues().map(function (r) { return r[0]; });
+  const hours = sheet.getRange(2, hoursCol, lastRow - 1, 1).getValues().map(function (r) { return r[0]; });
+
+  const result = {};
+  days.forEach(function (day, i) {
+    const dayName = (day || '').toString().trim();
+    if (!dayName) return;
+    result[dayName] = (hours[i] || '').toString().trim() || null;
+  });
+
+  return result;
+}
+
+/**
+ * Zapisuje tygodniowe godziny otwarcia do tabeli "dni pracy" / "godziny
+ * pracy" (np. po pobraniu z Google Wizytówki). Nadpisuje godziny tylko
+ * dla dni obecnych w hoursMap - inne wiersze zostają bez zmian.
+ * @param {Object} hoursMap {NazwaDnia: "8.30 - 15.30" | null}
+ */
+function setWeeklyWorkingHours(hoursMap) {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const dayCol = getSettingsColumnIndex('dni pracy');
+  const hoursCol = getSettingsColumnIndex('godziny pracy');
+  if (dayCol === -1 || hoursCol === -1) {
+    throw new Error('Brak kolumn "dni pracy" / "godziny pracy" w arkuszu Ustawienia.');
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  const days = sheet.getRange(2, dayCol, lastRow - 1, 1).getValues().map(function (r) { return r[0]; });
+
+  days.forEach(function (day, i) {
+    const dayName = (day || '').toString().trim();
+    if (!dayName || !(dayName in hoursMap)) return;
+    sheet.getRange(2 + i, hoursCol).setValue(hoursMap[dayName] || '');
+  });
 }
 
 /**

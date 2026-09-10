@@ -96,7 +96,7 @@ function getAvailabilityLimit(employeeId, year, month) {
   const wymiarEtatu = Number(employee.wymiarEtatu) || 1;
   const stopienOzn = (employee.stopienOzn || "").toString();
   const isOzn = stopienOzn !== "" && stopienOzn !== "Brak";
-  const dailyNorm = isOzn ? 7 : 8;
+  const dailyNorm = isOzn ? getNormaOznUop() : getNormaEtatUop();
 
   const monthlyNormFullTime = getMonthlyWorkNormHours(year, month);
   const monthlyNormForEmployee = monthlyNormFullTime * wymiarEtatu;

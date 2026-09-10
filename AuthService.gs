@@ -179,22 +179,18 @@ function generateRegistrationPin() {
 
 /**
  * Lista ID Telegram pracodawców z arkusza "Ustawienia"
- * Wiersz: PRACODAWCY_TELEGRAM_IDS, kolumny B..N
+ * Kolumna PRACODAWCY_TELEGRAM_IDS: jedno ID na wiersz, od wiersza 2 w dół.
  */
 function getEmployerTelegramIds() {
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEETS.SETTINGS);
-  const data = sheet.getDataRange().getValues();
-  
-  for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString().trim() !== 'PRACODAWCY_TELEGRAM_IDS') {
-      continue;
-    }
-    
-    return parseEmployerTelegramIds(data[i].slice(1));
-  }
-  
-  return [];
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const col = getSettingsColumnIndex('PRACODAWCY_TELEGRAM_IDS');
+  if (col === -1) return [];
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const values = sheet.getRange(2, col, lastRow - 1, 1).getValues().map(function (r) { return r[0]; });
+  return parseEmployerTelegramIds(values);
 }
 
 function generateNextEmployeeId(sheet) {

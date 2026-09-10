@@ -9,14 +9,23 @@ function setupDatabaseStructure() {
   const schema = {
     'Ustawienia': {
       color: '#4A5568', // Ciemnoszary
-      headers: ['Parametr', 'Wartość', 'Opis'],
+      // Układ kolumnowy: nagłówek = nazwa ustawienia, wartości pod spodem.
+      // NAZWA_FIRMY/logo/normy/miesiąc/webhook mają jedną wartość (wiersz 2).
+      // PRACODAWCY_TELEGRAM_IDS i dni/godziny pracy mają po jednej wartości
+      // na wiersz (rosnąco w dół), niezależnie od pozostałych kolumn.
+      headers: [
+        'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP',
+        'MIESIAC_GRAFIKU', 'WEBHOOK_URL', 'PRACODAWCY_TELEGRAM_IDS',
+        'dni pracy', 'godziny pracy'
+      ],
       initialData: [
-        ['PIN_SYSTEMOWY', '1234', 'Jednolicie obowiązujący kod PIN autoryzacji bota w Telegramie'],
-        ['NAZWA_FIRMY', 'Moja Firma Sp. z o.o.', 'Nazwa firmy widoczna w raportach'],
-        ['NORMA_ETAT_UOP', '8', 'Standardowa norma dobowa dla UoP (godziny)'],
-        ['NORMA_OZN_UOP', '7', 'Norma dobowa dla pracowników OzN (stopień umiarkowany/znaczny)'],
-        ['MIESIAC_GRAFIKU', '2026-10', 'Aktualnie planowany miesiąc grafiku (YYYY-MM)'],
-        ['PRACODAWCY_TELEGRAM_IDS', '', 'ID Telegram pracodawców (kolumny B..N)']
+        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00'],
+        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00'],
+        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00'],
+        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00'],
+        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00'],
+        ['', '', '', '', '', '', '', 'Sobota', ''],
+        ['', '', '', '', '', '', '', 'Niedziela', '']
       ]
     },
     'Pracownicy': {
@@ -77,6 +86,11 @@ function setupDatabaseStructure() {
         'Plik_GDrive_URL',   // Link do skanu/orzeczenia na Dysku Google
         'Uwagi'
       ],
+      initialData: []
+    },
+    'Dyspozycyjność': {
+      color: '#6B46C1', // Fioletowy
+      headers: ['ID_Dyspozycji', 'ID_Pracownika', 'Miesiac', 'Dni_Wolne', 'Data_Aktualizacji'],
       initialData: []
     }
   };
