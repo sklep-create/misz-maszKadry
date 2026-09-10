@@ -98,8 +98,12 @@ function extractUserHtml(html) {
     const match = html.match(/goog\.script\.init\("((?:[^"\\]|\\.)*)"/);
     if (!match) return null;
 
-    const jsStringLiteral = '"' + match[1] + '"';
-    const decodedJson = Function('"use strict"; return (' + jsStringLiteral + ')')();
+    // Cloudflare Workers blokuje eval()/Function() (generowanie kodu
+    // z ciągów znaków), więc dekodujemy literał JS ręcznie: jedyna
+    // różnica względem poprawnego JSON-a to escape'y \xHH (JS), które
+    // zamieniamy na \u00HH (JSON), a resztę parsuje już JSON.parse.
+    const jsonSafe = match[1].replace(/\\x([0-9a-fA-F]{2})/g, "\\u00$1");
+    const decodedJson = JSON.parse('"' + jsonSafe + '"');
     const payload = JSON.parse(decodedJson);
 
     return payload && typeof payload.userHtml === "string" ? payload.userHtml : null;
