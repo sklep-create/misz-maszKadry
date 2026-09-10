@@ -21,6 +21,28 @@ function isUserAuthorized(chatId) {
 }
 
 /**
+ * Zwraca dane pracownika (etat, stopień OzN) na podstawie ID_Pracownika.
+ */
+function getEmployeeById(employeeId) {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][0] || '').toString() === employeeId.toString()) {
+      return {
+        employeeId: data[i][0],
+        fullName: data[i][2] || '',
+        wymiarEtatu: data[i][4],
+        stopienOzn: data[i][5]
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Oznacza, że pracownik zadeklarował chęć podania PINu (kliknął
  * "Podaję PIN") - bot będzie oczekiwał PINu w kolejnej wiadomości,
  * nawet jeśli minie sporo czasu od rejestracji.

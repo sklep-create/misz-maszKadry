@@ -22,7 +22,8 @@ const CONFIG = {
     EMPLOYEES: 'Pracownicy',
     SCHEDULE: 'Grafik',
     TIMELOG: 'Ewidencja',
-    LEAVES: 'Wnioski'
+    LEAVES: 'Wnioski',
+    AVAILABILITY: 'Dyspozycyjność'
   }
 };
 

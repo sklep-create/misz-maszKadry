@@ -121,9 +121,22 @@
 
       .tabs {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
         margin: 22px 0 16px;
+      }
+
+      .avail-month-select {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
       }
 
       .tab-btn {
@@ -247,6 +260,7 @@
         <button class="tab-btn active" data-tab="historia">📜 Historia</button>
         <button class="tab-btn" data-tab="grafik">📅 Grafik</button>
         <button class="tab-btn" data-tab="korekta">✏️ Korekta</button>
+        <button class="tab-btn" data-tab="dyspozycyjnosc">🗓️ Dyspozycyjność</button>
       </nav>
 
       <section id="tab-historia" class="tab-content active">
@@ -275,6 +289,17 @@
         </form>
         <div id="corrStatus" class="status"></div>
       </section>
+
+      <section id="tab-dyspozycyjnosc" class="tab-content">
+        <label style="display:block; font-size:13px; color:var(--hint);">
+          Miesiąc
+          <select id="availMonth" class="avail-month-select"></select>
+        </label>
+        <div id="availCounter" class="status-badge idle" style="margin-top:12px;">⏳ Ładowanie…</div>
+        <div id="availDaysList" class="list" style="margin-top:12px;"><p class="empty-hint">Ładowanie…</p></div>
+        <button id="availSaveBtn" class="submit-btn" style="margin-top:14px;">Zapisz dyspozycyjność</button>
+        <div id="availStatus" class="status"></div>
+      </section>
     </main>
 
     <script>
@@ -295,6 +320,12 @@
         const corrNote = document.getElementById("corrNote");
         const corrSubmitBtn = document.getElementById("corrSubmitBtn");
         const corrStatus = document.getElementById("corrStatus");
+        const availMonth = document.getElementById("availMonth");
+        const availCounter = document.getElementById("availCounter");
+        const availDaysList = document.getElementById("availDaysList");
+        const availSaveBtn = document.getElementById("availSaveBtn");
+        const availStatus = document.getElementById("availStatus");
+        let availLimit = 0;
 
         const EVENT_ICON = { START: "▶️", STOP: "⏹️" };
         const DAY_ICON = { Praca: "💼", Wolne: "🌤️", Urlop: "🏖️", Chorobowe: "🤒" };
@@ -323,8 +354,13 @@
           e.preventDefault();
           submitCorrection();
         });
+        availMonth.addEventListener("change", function () {
+          loadAvailability(availMonth.value);
+        });
+        availSaveBtn.addEventListener("click", submitAvailability);
 
         loadDashboard();
+        loadAvailability();
 
         function submitEvent(type) {
           setLoading(true);
@@ -384,6 +420,109 @@
             .finally(function () {
               corrSubmitBtn.disabled = false;
             });
+        }
+
+        function loadAvailability(month) {
+          const requestParams = { initData: initData };
+          if (month) requestParams.month = month;
+
+          callApi("getAvailabilityData", requestParams)
+            .then(function (result) {
+              if (!result || !result.ok) {
+                availCounter.textContent = "⚠️ " + ((result && result.error) || "Nie udało się pobrać danych.");
+                availCounter.className = "status-badge idle";
+                return;
+              }
+
+              availLimit = result.limit;
+
+              if (!availMonth.dataset.loaded) {
+                availMonth.innerHTML = result.months.map(function (m) {
+                  return '<option value="' + m.value + '">' + escapeHtml(m.label) + '</option>';
+                }).join("");
+                availMonth.dataset.loaded = "1";
+              }
+
+              availMonth.value = result.selectedMonth;
+              renderAvailabilityDays(result.days, result.selectedDays);
+              updateAvailCounter();
+            })
+            .catch(function () {
+              availCounter.textContent = "⚠️ Błąd połączenia z serwerem.";
+              availCounter.className = "status-badge idle";
+            });
+        }
+
+        function renderAvailabilityDays(days, selectedDays) {
+          const selectedSet = new Set(selectedDays);
+
+          availDaysList.innerHTML = days.map(function (d) {
+            const checked = selectedSet.has(d.day) ? "checked" : "";
+            return '<label class="list-item" style="cursor:pointer;">' +
+              '<span class="label">' + d.day + ' (' + escapeHtml(d.dayName) + ')</span>' +
+              '<input type="checkbox" class="avail-day-checkbox" value="' + d.day + '" ' + checked + '>' +
+              '</label>';
+          }).join("");
+
+          document.querySelectorAll(".avail-day-checkbox").forEach(function (cb) {
+            cb.addEventListener("change", updateAvailCounter);
+          });
+        }
+
+        function updateAvailCounter() {
+          const checkedCount = document.querySelectorAll(".avail-day-checkbox:checked").length;
+          const remaining = availLimit - checkedCount;
+
+          if (remaining < 0) {
+            availCounter.className = "status-badge idle";
+            availCounter.style.color = "#ff9ea0";
+            availCounter.textContent = "⚠️ Za dużo! Odznacz jeszcze " + Math.abs(remaining) + " dni (limit: " + availLimit + ").";
+          } else {
+            availCounter.className = "status-badge idle";
+            availCounter.style.color = "";
+            availCounter.textContent = "Możesz jeszcze zaznaczyć: " + remaining + " z " + availLimit + " dni.";
+          }
+        }
+
+        function submitAvailability() {
+          const checkedDays = Array.from(document.querySelectorAll(".avail-day-checkbox:checked"))
+            .map(function (cb) { return cb.value; });
+
+          if (checkedDays.length > availLimit) {
+            setAvailStatus("❌ Za dużo zaznaczonych dni. Odznacz jeszcze " + (checkedDays.length - availLimit) + ".", "error");
+            return;
+          }
+
+          availSaveBtn.disabled = true;
+          setAvailStatus("Zapisywanie...", "");
+
+          callApi("submitAvailability", {
+            initData: initData,
+            month: availMonth.value,
+            days: checkedDays.join(",")
+          })
+            .then(function (result) {
+              if (result && result.ok) {
+                setAvailStatus(result.message || "✅ Zapisano", "success");
+                haptic("notification", "success");
+                return;
+              }
+
+              setAvailStatus("❌ " + ((result && result.error) || "Nie udało się zapisać."), "error");
+              haptic("notification", "error");
+            })
+            .catch(function () {
+              setAvailStatus("❌ Błąd połączenia z serwerem.", "error");
+              haptic("notification", "error");
+            })
+            .finally(function () {
+              availSaveBtn.disabled = false;
+            });
+        }
+
+        function setAvailStatus(message, className) {
+          availStatus.textContent = message || "";
+          availStatus.className = "status" + (className ? " " + className : "");
         }
 
         function loadDashboard() {

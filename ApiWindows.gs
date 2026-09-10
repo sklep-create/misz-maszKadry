@@ -25,6 +25,10 @@ function doGet(e) {
     responseData = getMiniAppDashboard(params);
   } else if (action === "submitCorrection") {
     responseData = submitCorrectionFromMiniApp(params);
+  } else if (action === "getAvailabilityData") {
+    responseData = getAvailabilityData(params);
+  } else if (action === "submitAvailability") {
+    responseData = submitAvailability(params);
   }
 
   return ContentService.createTextOutput(JSON.stringify(responseData))
