@@ -29,6 +29,12 @@ function doGet(e) {
     responseData = getAvailabilityData(params);
   } else if (action === "submitAvailability") {
     responseData = submitAvailability(params);
+  } else if (action === "getMiniAppRole") {
+    responseData = getMiniAppRole(params);
+  } else if (action === "getPendingAttendance") {
+    responseData = getPendingAttendance(params);
+  } else if (action === "approveAttendance") {
+    responseData = approveAttendanceFromMiniApp(params);
   }
 
   return ContentService.createTextOutput(JSON.stringify(responseData))

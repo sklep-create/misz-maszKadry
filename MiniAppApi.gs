@@ -25,7 +25,7 @@ function registerEventFromMiniApp(params) {
       };
     }
 
-    registerTimeEvent(auth.employeeId, eventType, "MiniApp");
+    registerTimeEvent(auth.employeeId, eventType);
 
     return {
       ok: true,
@@ -199,5 +199,96 @@ function submitAvailability(params) {
   } catch (err) {
     Logger.log("Błąd submitAvailability: " + err.toString());
     return { ok: false, error: "Wystąpił błąd podczas zapisywania dyspozycyjności." };
+  }
+}
+
+/**
+ * Rozpoznaje rolę osoby otwierającej Mini App: "employer" albo "employee".
+ * Dla pracodawcy zwraca od razu listę pracowników do wyboru.
+ * @param {Object} params Parametry zapytania HTTP (initData).
+ */
+function getMiniAppRole(params) {
+  try {
+    const initData = (params.initData || "") + "";
+
+    const verification = verifyTelegramInitData(initData, getTelegramToken());
+    if (!verification.ok) {
+      return { ok: false, error: verification.error || "Invalid initData" };
+    }
+
+    if (isEmployerTelegramChat(verification.userId)) {
+      return { ok: true, role: "employer", employees: getEmployeesForEmployer() };
+    }
+
+    return { ok: true, role: "employee" };
+  } catch (err) {
+    Logger.log("Błąd getMiniAppRole: " + err.toString());
+    return { ok: false, error: "Wystąpił błąd podczas weryfikacji roli." };
+  }
+}
+
+/**
+ * Niezatwierdzone dni pracy wybranego pracownika (Panel Pracodawcy).
+ * @param {Object} params Parametry zapytania HTTP (initData, employeeId).
+ */
+function getPendingAttendance(params) {
+  try {
+    const initData = (params.initData || "") + "";
+    const employeeId = ((params.employeeId || "") + "").trim();
+
+    const verification = verifyTelegramInitData(initData, getTelegramToken());
+    if (!verification.ok) {
+      return { ok: false, error: verification.error || "Invalid initData" };
+    }
+
+    if (!isEmployerTelegramChat(verification.userId)) {
+      return { ok: false, error: "Brak uprawnień Pracodawcy." };
+    }
+
+    if (!employeeId) {
+      return { ok: false, error: "Wybierz pracownika." };
+    }
+
+    return { ok: true, pending: getPendingAttendanceForEmployee(employeeId) };
+  } catch (err) {
+    Logger.log("Błąd getPendingAttendance: " + err.toString());
+    return { ok: false, error: "Wystąpił błąd podczas pobierania godzin." };
+  }
+}
+
+/**
+ * Zatwierdza dzień pracy (Nadgodziny + Przepracowane) zgłoszony z Panelu Pracodawcy.
+ * @param {Object} params Parametry zapytania HTTP (initData, employeeId, logId, nadgodziny, przepracowane).
+ */
+function approveAttendanceFromMiniApp(params) {
+  try {
+    const initData = (params.initData || "") + "";
+    const employeeId = ((params.employeeId || "") + "").trim();
+    const logId = ((params.logId || "") + "").trim();
+    const nadgodziny = ((params.nadgodziny || "") + "").trim();
+    const przepracowane = ((params.przepracowane || "") + "").trim();
+
+    const verification = verifyTelegramInitData(initData, getTelegramToken());
+    if (!verification.ok) {
+      return { ok: false, error: verification.error || "Invalid initData" };
+    }
+
+    if (!isEmployerTelegramChat(verification.userId)) {
+      return { ok: false, error: "Brak uprawnień Pracodawcy." };
+    }
+
+    if (!employeeId || !logId) {
+      return { ok: false, error: "Brak danych dnia do zatwierdzenia." };
+    }
+
+    const result = approveAttendanceDay(logId, employeeId, nadgodziny, przepracowane);
+    if (!result.ok) {
+      return result;
+    }
+
+    return { ok: true, message: "✅ Zatwierdzono: " + result.przepracowane };
+  } catch (err) {
+    Logger.log("Błąd approveAttendanceFromMiniApp: " + err.toString());
+    return { ok: false, error: "Wystąpił błąd podczas zatwierdzania godzin." };
   }
 }

@@ -16,7 +16,7 @@ function checkMissingStartLogs() {
 
     if (formattedDate === todayStr && currentTimeStr >= startTime) {
       // Sprawdź czy pracownik kliknął dzisiaj START
-      const hasStarted = timeLogs.some(log => log[1] === empId && Utilities.formatDate(new Date(log[2]), "CET", "yyyy-MM-dd") === todayStr && log[4] === "START");
+      const hasStarted = timeLogs.some(log => log[1] === empId && Utilities.formatDate(new Date(log[2]), "CET", "yyyy-MM-dd") === todayStr && !!log[3]);
       
       if (!hasStarted) {
         // Znajdź ChatID pracownika i wyślij ostrzeżenie

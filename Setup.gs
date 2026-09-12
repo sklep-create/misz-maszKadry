@@ -5,6 +5,21 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
+  const setupMenu = ui.createMenu('🔐 Pierwsze uruchomienie')
+    .addItem('🔐 Inicjalizuj sekretne dane (token bota)', 'initializeSecrets')
+    .addItem('🗂️ Zapamiętaj ID tego Arkusza (wymagane dla bota)', 'setSpreadsheetId')
+    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus');
+
+  const databaseMenu = ui.createMenu('🗄️ Baza danych (arkusze)')
+    .addItem('🚀 Wygeneruj całą bazę danych od nowa', 'setupDatabaseStructure')
+    .addItem('🔁 Przebuduj wybrany arkusz od nowa', 'showRebuildSheetDialog')
+    .addItem('📋 Wstaw przykładowe dane (tylko otwarty arkusz)', 'insertSampleDataIntoActiveSheet');
+
+  const webhookMenu = ui.createMenu('🔗 Telegram: Webhook i wdrożenie')
+    .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
+    .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
+    .addItem('🌐 Ustaw URL Proxy (Cloudflare) dla Webhooka', 'setTelegramWebhookProxyUrl');
+
   const diagnosticsMenu = ui.createMenu('🛠️ Narzędzia Bota (diagnostyka)')
     .addItem('🔍 Pełna diagnostyka bota', 'runFullBotDiagnostics')
     .addItem('🤖 Sprawdź token bota (getMe)', 'telegramGetMe')
@@ -21,18 +36,12 @@ function onOpen() {
     .addItem('⬆️ Wyślij godziny do Google Wizytówki', 'pushHoursToGoogleBusinessProfile');
 
   ui.createMenu('⚙️ System Kadrowy')
-    .addItem('🚀 Wygeneruj bazę danych (Pierwsze uruchomienie)', 'setupDatabaseStructure')
-    .addItem('🔐 Inicjalizuj sekretne dane (PIERWSZE URUCHOMIENIE)', 'initializeSecrets')
-    .addItem('🗂️ Zapamiętaj ID tego Arkusza (wymagane dla bota)', 'setSpreadsheetId')
-    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
+    .addSubMenu(setupMenu)
+    .addSubMenu(databaseMenu)
+    .addSubMenu(webhookMenu)
     .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
-    .addSeparator()
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
-    .addSeparator()
-    .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
-    .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
-    .addItem('🌐 Ustaw URL Proxy (Cloudflare) dla Webhooka', 'setTelegramWebhookProxyUrl')
     .addSeparator()
     .addSubMenu(diagnosticsMenu)
     .addSubMenu(businessProfileMenu)

@@ -1,21 +1,29 @@
 /**
- * Zapisuje zdarzenie START / STOP w arkuszu Ewidencja
+ * Rejestruje START lub STOP w arkuszu Ewidencja.
+ * Jeden wiersz = jeden dzień pracy: START tworzy nowy wiersz, STOP uzupełnia
+ * Czas_Stop w najnowszym otwartym (bez Czas_Stop) wierszu tego pracownika.
  */
-function registerTimeEvent(employeeId, eventType, source) {
+function registerTimeEvent(employeeId, eventType) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.TIMELOG);
   const now = new Date();
-  const eventSource = source || "Telegram";
-  
-  sheet.appendRow([
-    Utilities.getUuid(),
-    employeeId,
-    Utilities.formatDate(now, "CET", "yyyy-MM-dd"),
-    Utilities.formatDate(now, "CET", "HH:mm:ss"),
-    eventType,
-    eventSource,
-    "Zatwierdzone"
-  ]);
+  const today = Utilities.formatDate(now, "CET", "yyyy-MM-dd");
+  const time = Utilities.formatDate(now, "CET", "HH:mm:ss");
+
+  if (eventType === "START") {
+    sheet.appendRow([Utilities.getUuid(), employeeId, today, time, "", "", ""]);
+    return;
+  }
+
+  // STOP: znajdź od dołu najnowszy wiersz tego pracownika z pustym Czas_Stop
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if ((data[i][1] || "").toString() !== employeeId.toString()) continue;
+    if (data[i][3] && !data[i][4]) {
+      sheet.getRange(i + 1, 5).setValue(time); // Czas_Stop
+    }
+    return;
+  }
 }
 
 /**
@@ -25,7 +33,7 @@ function saveCorrectionRequest(employeeId, details) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.LEAVES);
   const now = new Date();
-  
+
   sheet.appendRow([
     Utilities.getUuid(),
     employeeId,
@@ -60,52 +68,62 @@ function saveStructuredCorrectionRequest(employeeId, date, startTime, note) {
 }
 
 /**
- * Zwraca zdarzenia START/STOP danego pracownika, od najnowszego.
+ * Zwraca dni pracy (wiersze Ewidencji) danego pracownika, od najnowszego.
  * @param {string} employeeId
- * @param {number} [limit] Maksymalna liczba zwróconych zdarzeń.
+ * @param {number} [limit] Maksymalna liczba zwróconych dni.
  */
 function getTimeEventsForEmployee(employeeId, limit) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.TIMELOG);
   const data = sheet.getDataRange().getValues();
-  const events = [];
+  const days = [];
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if ((row[1] || "").toString() !== employeeId.toString()) continue;
-    if (row[6] === "Anulowane") continue;
 
-    events.push({
+    const start = formatSheetTime(row[3]);
+    const stop = formatSheetTime(row[4]);
+    const przepracowane = (row[6] || "").toString();
+
+    days.push({
       date: formatSheetDate(row[2]),
-      time: formatSheetTime(row[3]),
-      type: row[4],
-      source: row[5]
+      start: start,
+      stop: stop,
+      nadgodziny: (row[5] || "").toString(),
+      przepracowane: przepracowane,
+      approved: !!przepracowane
     });
   }
 
-  events.sort((a, b) => (a.date + "T" + a.time).localeCompare(b.date + "T" + b.time));
-  events.reverse();
+  days.sort((a, b) => (a.date + "T" + a.start).localeCompare(b.date + "T" + b.start));
+  days.reverse();
 
-  return limit ? events.slice(0, limit) : events;
+  return limit ? days.slice(0, limit) : days;
 }
 
 /**
- * Zwraca bieżący status pracownika na podstawie ostatniego zdarzenia.
+ * Zwraca bieżący status pracownika na podstawie najnowszego wiersza Ewidencji.
  * @param {string} employeeId
  */
 function getEmployeeStatus(employeeId) {
-  const lastEvents = getTimeEventsForEmployee(employeeId, 1);
+  const lastDays = getTimeEventsForEmployee(employeeId, 1);
 
-  if (!lastEvents.length) {
+  if (!lastDays.length) {
     return { working: false, lastEventType: null, lastEventDate: null, lastEventTime: null };
   }
 
-  const last = lastEvents[0];
+  const last = lastDays[0];
+
+  if (last.start && !last.stop) {
+    return { working: true, lastEventType: "START", lastEventDate: last.date, lastEventTime: last.start };
+  }
+
   return {
-    working: last.type === "START",
-    lastEventType: last.type,
+    working: false,
+    lastEventType: last.stop ? "STOP" : (last.start ? "START" : null),
     lastEventDate: last.date,
-    lastEventTime: last.time
+    lastEventTime: last.stop || last.start || null
   };
 }
 

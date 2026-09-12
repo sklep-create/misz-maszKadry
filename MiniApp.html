@@ -196,6 +196,61 @@
         padding: 14px 0;
       }
 
+      .attendance-item {
+        display: grid;
+        gap: 8px;
+        background: var(--surface-2);
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 13px;
+      }
+
+      .attendance-item .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .attendance-item .controls {
+        display: flex;
+        gap: 8px;
+      }
+
+      .attendance-item select,
+      .attendance-item input {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        color: var(--text);
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .attendance-item select {
+        flex: 1;
+      }
+
+      .attendance-item input {
+        width: 70px;
+      }
+
+      .attendance-item .approve-btn {
+        border: none;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--accent);
+        cursor: pointer;
+      }
+
+      .attendance-item .approve-btn:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+
       .form {
         display: grid;
         gap: 14px;
@@ -244,7 +299,7 @@
     </style>
   </head>
   <body>
-    <main class="panel">
+    <main class="panel" id="employeePanel" style="display:none;">
       <h1>Panel Pracownika</h1>
       <p class="subtitle" id="employeeName">Rejestruj czas pracy bezpośrednio w Telegramie.</p>
 
@@ -302,6 +357,22 @@
       </section>
     </main>
 
+    <main class="panel" id="employerPanel" style="display:none;">
+      <h1>Panel Pracodawcy</h1>
+      <p class="subtitle">Zatwierdzaj godziny pracy pracowników.</p>
+
+      <nav class="tabs" style="grid-template-columns: 1fr;">
+        <button class="tab-btn active" type="button">✅ Zatwierdź godziny</button>
+      </nav>
+
+      <label style="display:block; font-size:13px; color:var(--hint);">
+        Pracownik
+        <select id="empSelect" class="avail-month-select"></select>
+      </label>
+
+      <div id="pendingList" class="list" style="margin-top:14px;"><p class="empty-hint">Wybierz pracownika…</p></div>
+    </main>
+
     <script>
       (function () {
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -327,7 +398,11 @@
         const availStatus = document.getElementById("availStatus");
         let availLimit = 0;
 
-        const EVENT_ICON = { START: "▶️", STOP: "⏹️" };
+        const employeePanel = document.getElementById("employeePanel");
+        const employerPanel = document.getElementById("employerPanel");
+        const empSelect = document.getElementById("empSelect");
+        const pendingList = document.getElementById("pendingList");
+
         const DAY_ICON = { Praca: "💼", Wolne: "🌤️", Urlop: "🏖️", Chorobowe: "🤒" };
         const DAY_NAMES = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
 
@@ -358,9 +433,155 @@
           loadAvailability(availMonth.value);
         });
         availSaveBtn.addEventListener("click", submitAvailability);
+        empSelect.addEventListener("change", function () {
+          loadPending(empSelect.value);
+        });
+        pendingList.addEventListener("change", function (e) {
+          if (e.target.classList.contains("nadgodziny-select")) {
+            syncPrzepracowaneInput(e.target);
+          }
+        });
+        pendingList.addEventListener("click", function (e) {
+          if (e.target.classList.contains("approve-btn")) {
+            submitApproval(e.target);
+          }
+        });
 
-        loadDashboard();
-        loadAvailability();
+        loadRole();
+
+        function loadRole() {
+          callApi("getMiniAppRole", { initData: initData })
+            .then(function (result) {
+              if (result && result.ok && result.role === "employer") {
+                employerPanel.style.display = "";
+                populateEmployeeSelect(result.employees || []);
+                return;
+              }
+
+              employeePanel.style.display = "";
+              loadDashboard();
+              loadAvailability();
+            })
+            .catch(function () {
+              employeePanel.style.display = "";
+              loadDashboard();
+              loadAvailability();
+            });
+        }
+
+        function populateEmployeeSelect(employees) {
+          if (!employees.length) {
+            empSelect.innerHTML = '<option value="">Brak pracowników</option>';
+            return;
+          }
+
+          empSelect.innerHTML = '<option value="">— wybierz —</option>' + employees.map(function (emp) {
+            return '<option value="' + escapeHtml(emp.employeeId) + '">' + escapeHtml(emp.fullName) + '</option>';
+          }).join("");
+        }
+
+        function loadPending(employeeId) {
+          if (!employeeId) {
+            pendingList.innerHTML = '<p class="empty-hint">Wybierz pracownika…</p>';
+            return;
+          }
+
+          pendingList.innerHTML = '<p class="empty-hint">Ładowanie…</p>';
+
+          callApi("getPendingAttendance", { initData: initData, employeeId: employeeId })
+            .then(function (result) {
+              if (!result || !result.ok) {
+                pendingList.innerHTML = '<p class="empty-hint">⚠️ ' + escapeHtml((result && result.error) || "Nie udało się pobrać danych.") + '</p>';
+                return;
+              }
+
+              renderPending(result.pending || []);
+            })
+            .catch(function () {
+              pendingList.innerHTML = '<p class="empty-hint">⚠️ Błąd połączenia z serwerem.</p>';
+            });
+        }
+
+        function renderPending(pending) {
+          if (!pending.length) {
+            pendingList.innerHTML = '<p class="empty-hint">Brak niezatwierdzonych dni.</p>';
+            return;
+          }
+
+          pendingList.innerHTML = pending.map(function (item) {
+            return '<div class="attendance-item" data-log-id="' + escapeHtml(item.logId) + '">' +
+              '<div class="row">' +
+              '<span class="label">' + escapeHtml(item.date) + '</span>' +
+              '<span class="meta">' + escapeHtml((item.start || "").slice(0, 5)) + ' – ' + escapeHtml((item.stop || "").slice(0, 5)) + ' (razem ' + escapeHtml(item.rawDuration) + ')</span>' +
+              '</div>' +
+              '<div class="controls">' +
+              '<select class="nadgodziny-select" data-log-id="' + escapeHtml(item.logId) + '" data-standard="' + escapeHtml(item.standardHours) + '" data-raw="' + escapeHtml(item.rawDuration) + '">' +
+              '<option value="NIE">Bez nadgodzin (' + escapeHtml(item.standardHours) + ')</option>' +
+              '<option value="TAK">Nadgodziny (dokładny czas)</option>' +
+              '</select>' +
+              '<input type="text" class="przepracowane-input" data-log-id="' + escapeHtml(item.logId) + '" value="' + escapeHtml(item.standardHours) + '" disabled>' +
+              '</div>' +
+              '<button type="button" class="approve-btn" data-log-id="' + escapeHtml(item.logId) + '">Zatwierdź</button>' +
+              '<div class="status" data-role="rowStatus"></div>' +
+              '</div>';
+          }).join("");
+        }
+
+        function syncPrzepracowaneInput(selectEl) {
+          const logId = selectEl.dataset.logId;
+          const input = pendingList.querySelector('.przepracowane-input[data-log-id="' + cssEscape(logId) + '"]');
+          if (!input) return;
+
+          if (selectEl.value === "TAK") {
+            input.disabled = false;
+            input.value = selectEl.dataset.raw;
+          } else {
+            input.disabled = true;
+            input.value = selectEl.dataset.standard;
+          }
+        }
+
+        function submitApproval(btn) {
+          const logId = btn.dataset.logId;
+          const item = btn.closest(".attendance-item");
+          const select = item.querySelector(".nadgodziny-select");
+          const input = item.querySelector(".przepracowane-input");
+          const rowStatus = item.querySelector('[data-role="rowStatus"]');
+
+          btn.disabled = true;
+          rowStatus.textContent = "Zapisywanie...";
+          rowStatus.className = "status";
+
+          callApi("approveAttendance", {
+            initData: initData,
+            employeeId: empSelect.value,
+            logId: logId,
+            nadgodziny: select.value,
+            przepracowane: input.value
+          })
+            .then(function (result) {
+              if (result && result.ok) {
+                rowStatus.textContent = result.message || "✅ Zatwierdzono";
+                rowStatus.className = "status success";
+                haptic("notification", "success");
+                setTimeout(function () { loadPending(empSelect.value); }, 600);
+                return;
+              }
+
+              rowStatus.textContent = "❌ " + ((result && result.error) || "Nie udało się zatwierdzić.");
+              rowStatus.className = "status error";
+              btn.disabled = false;
+            })
+            .catch(function () {
+              rowStatus.textContent = "❌ Błąd połączenia z serwerem.";
+              rowStatus.className = "status error";
+              btn.disabled = false;
+            });
+        }
+
+        function cssEscape(value) {
+          return (value || "").toString().replace(/["\\]/g, "\\$&");
+        }
 
         function submitEvent(type) {
           setLoading(true);
@@ -561,15 +782,18 @@
 
         function renderHistory(history) {
           if (!history.length) {
-            historyList.innerHTML = '<p class="empty-hint">Brak zarejestrowanych zdarzeń.</p>';
+            historyList.innerHTML = '<p class="empty-hint">Brak zarejestrowanych dni.</p>';
             return;
           }
 
           historyList.innerHTML = history.map(function (item) {
-            const icon = EVENT_ICON[item.type] || "•";
+            const range = (item.start || "?").slice(0, 5) + " – " + (item.stop ? item.stop.slice(0, 5) : "trwa");
+            const meta = item.approved
+              ? ("✅ " + escapeHtml(item.przepracowane))
+              : "⏳ oczekuje na zatwierdzenie";
             return '<div class="list-item">' +
-              '<span class="label">' + icon + ' ' + escapeHtml(item.type) + '</span>' +
-              '<span class="meta">' + escapeHtml(item.date) + ' ' + escapeHtml((item.time || "").slice(0, 5)) + '</span>' +
+              '<span class="label">' + escapeHtml(item.date) + ' · ' + escapeHtml(range) + '</span>' +
+              '<span class="meta">' + meta + '</span>' +
               '</div>';
           }).join("");
         }
