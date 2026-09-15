@@ -38,7 +38,8 @@ function onOpen() {
   const grafikMenu = ui.createMenu('🗓️ Grafik')
     .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'zainstalujAutomatyczneGenerowanieGrafiku')
     .addItem('🔁 Wygeneruj następny okres teraz (ręcznie/test)', 'generateGrafikNowForced')
-    .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport');
+    .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport')
+    .addItem('🖨️ Wygeneruj zbiorczy grafik PDF (do druku)', 'generujGrafikZbiorczyPdf');
 
   const daysOffMenu = ui.createMenu('📅 Dni wolne')
     .addItem('🔄 Odśwież listę dni wolnych (poprzedni/obecny/kolejny rok)', 'refreshDniWolneSheet')
