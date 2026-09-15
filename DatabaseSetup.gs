@@ -200,9 +200,12 @@ function ensureSettingsColumnsExist() {
   const schema = getDatabaseSchema()['Ustawienia'];
   const lastCol = sheet.getLastColumn();
   const existingHeaders = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  // Porównanie bez rozróżniania wielkości liter - "Nadgodziny" i "NADGODZINY"
+  // to dla ludzi ta sama kolumna, nie powinny stać się dwoma osobnymi.
+  const existingLower = existingHeaders.map(function (h) { return (h || '').toString().trim().toLowerCase(); });
 
   const missing = schema.headers.filter(function (h) {
-    return existingHeaders.indexOf(h) === -1;
+    return existingLower.indexOf(h.toLowerCase()) === -1;
   });
 
   let msg;

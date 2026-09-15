@@ -82,8 +82,9 @@ function getSettingsColumnIndex(headerName) {
   if (lastColumn < 1) return -1;
 
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const target = headerName.toString().trim().toLowerCase();
   const index = headers.findIndex(function (h) {
-    return (h || '').toString().trim() === headerName;
+    return (h || '').toString().trim().toLowerCase() === target;
   });
 
   return index === -1 ? -1 : index + 1;
