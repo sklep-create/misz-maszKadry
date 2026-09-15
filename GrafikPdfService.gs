@@ -90,12 +90,12 @@ function _buildGrafikZbiorczyHtml(startDate, endDate) {
       const isHoliday = !!daysOffSet[dateStr];
 
       if (entry && entry.type === 'Praca') {
-        return '<td class="praca"><span class="pill">' + entry.start.slice(0, 5) + '–' + entry.stop.slice(0, 5) + '</span></td>';
+        return '<td class="praca">' + entry.start.slice(0, 5) + '<br>' + entry.stop.slice(0, 5) + '</td>';
       }
       if (isHoliday) {
-        return '<td class="swieto">✦</td>';
+        return '<td class="swieto">ŚWIĘTO</td>';
       }
-      return '<td class="wolne">·</td>';
+      return '<td class="wolne">WOLNE</td>';
     }).join('');
     const rowCls = empIndex % 2 === 0 ? 'row-even' : 'row-odd';
     return '<tr class="' + rowCls + '"><td class="emp-name">' + escapeHtml(emp.fullName) + '</td>' + cells + '</tr>';
@@ -105,43 +105,40 @@ function _buildGrafikZbiorczyHtml(startDate, endDate) {
   const startStr = Utilities.formatDate(startDate, 'CET', 'd MMMM yyyy');
   const endStr = Utilities.formatDate(endDate, 'CET', 'd MMMM yyyy');
 
+  // Uwaga: konwerter Apps Script (Utilities.newBlob(html).getAs('application/pdf'))
+  // NIE renderuje dobrze gradientów/border-radius/subtelnych pasteli - stąd
+  // celowo tylko płaskie, mocno nasycone kolory i grube czcionki.
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
     '@page { size: A4 landscape; margin: 8mm; }' +
-    '* { box-sizing: border-box; }' +
-    'body { font-family: "Segoe UI", Arial, sans-serif; font-size: 9px; color: #1A202C; margin: 0; }' +
-    '.banner { background: linear-gradient(135deg, #1A365D 0%, #2C5282 100%); color: #fff; ' +
-      'padding: 14px 18px; border-radius: 10px; margin-bottom: 12px; }' +
-    '.banner h1 { font-size: 20px; margin: 0 0 3px; letter-spacing: 0.3px; }' +
-    '.banner .subtitle { color: #BEE3F8; font-size: 12px; }' +
-    'table { border-collapse: separate; border-spacing: 0; width: 100%; border-radius: 8px; overflow: hidden; }' +
-    'th, td { border: 1px solid #E2E8F0; padding: 4px 2px; text-align: center; }' +
-    'th { background: #2D3748; color: #fff; font-size: 8px; font-weight: 600; padding: 6px 2px; }' +
-    'th:first-child { border-top-left-radius: 8px; }' +
-    'th:last-child { border-top-right-radius: 8px; }' +
-    'th .dow { display: block; font-size: 7px; opacity: 0.75; font-weight: normal; margin-top: 1px; }' +
+    'body { font-family: Arial, sans-serif; font-size: 11px; color: #000; margin: 0; }' +
+    '.banner { background: #1A365D; color: #fff; padding: 10px 16px; margin-bottom: 10px; }' +
+    '.banner h1 { font-size: 22px; margin: 0; font-weight: bold; }' +
+    '.banner .subtitle { color: #fff; font-size: 13px; font-weight: bold; }' +
+    'table { border-collapse: collapse; width: 100%; }' +
+    'th, td { border: 2px solid #000; padding: 5px 2px; text-align: center; }' +
+    'th { background: #000; color: #fff; font-size: 10px; font-weight: bold; }' +
+    'th .dow { display: block; font-size: 9px; }' +
     'th.weekend-header { background: #4A5568; }' +
-    'th.holiday-header { background: #C53030; }' +
-    'td.emp-name { text-align: left; font-weight: 600; background: #EDF2F7; white-space: nowrap; padding-left: 8px; color: #2D3748; }' +
-    'tr.row-odd td:not(.emp-name):not(.praca):not(.swieto) { background: #FAFBFC; }' +
-    'td.praca { background: #E6FFFA; }' +
-    'td.praca .pill { display: inline-block; background: #38B2AC; color: #fff; font-weight: 700; ' +
-      'border-radius: 10px; padding: 2px 6px; font-size: 7.5px; white-space: nowrap; }' +
-    'td.wolne { background: #F7FAFC; color: #CBD5E0; font-size: 11px; }' +
-    'td.swieto { background: #FFF5F5; color: #E53E3E; font-size: 11px; font-weight: 700; }' +
-    '.legend { margin-top: 14px; font-size: 9px; background: #F7FAFC; border-radius: 8px; padding: 8px 12px; display: inline-block; }' +
-    '.legend span.item { display: inline-block; margin-right: 18px; }' +
-    '.swatch { display: inline-block; width: 11px; height: 11px; margin-right: 5px; vertical-align: middle; border-radius: 3px; }' +
-    '.footer { margin-top: 10px; font-size: 8px; color: #A0AEC0; }' +
+    'th.holiday-header { background: #C0392B; }' +
+    'td.emp-name { text-align: left; font-weight: bold; background: #D9D9D9; white-space: nowrap; padding-left: 8px; font-size: 12px; }' +
+    'tr.row-odd td.wolne { background: #E8E8E8; }' +
+    'td.praca { background: #27AE60; color: #fff; font-weight: bold; font-size: 11px; }' +
+    'td.wolne { background: #F2F2F2; color: #555; font-weight: bold; font-size: 9px; }' +
+    'td.swieto { background: #C0392B; color: #fff; font-weight: bold; font-size: 9px; }' +
+    '.legend { margin-top: 12px; font-size: 11px; font-weight: bold; }' +
+    '.legend span.item { display: inline-block; margin-right: 20px; }' +
+    '.swatch { display: inline-block; width: 14px; height: 14px; margin-right: 5px; vertical-align: middle; border: 1px solid #000; }' +
+    '.footer { margin-top: 10px; font-size: 8px; color: #666; }' +
     '</style></head><body>' +
     '<div class="banner">' +
-    '<h1>' + escapeHtml(nazwaFirmy) + ' · Grafik pracy</h1>' +
+    '<h1>' + escapeHtml(nazwaFirmy) + ' — GRAFIK PRACY</h1>' +
     '<div class="subtitle">' + startStr + ' – ' + endStr + '</div>' +
     '</div>' +
     '<table><thead><tr><th>Pracownik</th>' + headerCells + '</tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="legend">' +
-    '<span class="item"><span class="swatch" style="background:#38B2AC;"></span>Praca (godziny)</span>' +
-    '<span class="item"><span class="swatch" style="background:#F7FAFC;border:1px solid #CBD5E0;"></span>Wolne</span>' +
-    '<span class="item"><span class="swatch" style="background:#E53E3E;"></span>Święto / dzień zamknięcia firmy</span>' +
+    '<span class="item"><span class="swatch" style="background:#27AE60;"></span>PRACA (godziny)</span>' +
+    '<span class="item"><span class="swatch" style="background:#F2F2F2;"></span>WOLNE</span>' +
+    '<span class="item"><span class="swatch" style="background:#C0392B;"></span>ŚWIĘTO / dzień zamknięcia firmy</span>' +
     '</div>' +
     '<div class="footer">Wygenerowano: ' + Utilities.formatDate(new Date(), 'CET', 'yyyy-MM-dd HH:mm') + '</div>' +
     '</body></html>';
