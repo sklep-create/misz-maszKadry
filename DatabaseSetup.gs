@@ -21,16 +21,18 @@ function getDatabaseSchema() {
         'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP',
         'MIESIAC_GRAFIKU', 'WEBHOOK_URL', 'PRACODAWCY_TELEGRAM_IDS',
         'dni pracy', 'godziny pracy',
-        'NADGODZINY' // TAK/NIE - globalna zgoda firmy na nadgodziny (patrz isOvertimeAllowed() w Config.gs). OzN nigdy nie ma nadgodzin, niezależnie od tej wartości.
+        'NADGODZINY', // TAK/NIE - globalna zgoda firmy na nadgodziny (patrz isOvertimeAllowed() w Config.gs). OzN nigdy nie ma nadgodzin, niezależnie od tej wartości.
+        'DNI_GRAFIKU',           // liczba dni okresu grafiku (np. 14, 20); puste = cały kalendarzowy miesiąc. Patrz getNextGrafikPeriod() w GrafikGeneratorService.gs.
+        'OSTATNI_DZIEN_GRAFIKU'  // YYYY-MM-DD ostatniego dnia już wygenerowanego okresu - ustawiane automatycznie, nie edytuj ręcznie.
       ],
       initialData: [
-        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE'],
-        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', ''],
-        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', ''],
-        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', ''],
-        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', ''],
-        ['', '', '', '', '', '', '', 'Sobota', '', ''],
-        ['', '', '', '', '', '', '', 'Niedziela', '', '']
+        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', ''],
+        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', ''],
+        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', ''],
+        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', ''],
+        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', ''],
+        ['', '', '', '', '', '', '', 'Sobota', '', '', '', ''],
+        ['', '', '', '', '', '', '', 'Niedziela', '', '', '', '']
       ]
     },
     'Pracownicy': {

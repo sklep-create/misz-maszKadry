@@ -35,10 +35,16 @@ function onOpen() {
     .addItem('⬇️ Pobierz godziny z Google Wizytówki', 'pullHoursFromGoogleBusinessProfile')
     .addItem('⬆️ Wyślij godziny do Google Wizytówki', 'pushHoursToGoogleBusinessProfile');
 
+  const grafikMenu = ui.createMenu('🗓️ Grafik')
+    .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'installGrafikGenerationTrigger')
+    .addItem('🔁 Wygeneruj następny okres teraz (ręcznie/test)', 'generateGrafikNowForced')
+    .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addSubMenu(setupMenu)
     .addSubMenu(databaseMenu)
     .addSubMenu(webhookMenu)
+    .addSubMenu(grafikMenu)
     .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')

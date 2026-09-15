@@ -135,7 +135,7 @@ function getAvailabilityData(params) {
       };
     }
 
-    const months = getSelectableAvailabilityMonths(4);
+    const months = getSelectableAvailabilityMonths(3);
     const requestedMonth = ((params.month || "") + "").trim();
     const monthValue = months.some(function (m) { return m.value === requestedMonth; })
       ? requestedMonth

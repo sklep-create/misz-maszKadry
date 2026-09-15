@@ -97,6 +97,14 @@ function getSettingValue(headerName) {
   return sheet.getRange(2, col).getValue();
 }
 
+/** Zapisuje pojedynczą wartość ustawienia (wiersz 2) po nazwie nagłówka kolumny. */
+function setSettingValue(headerName, value) {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const col = getSettingsColumnIndex(headerName);
+  if (col === -1) throw new Error('Brak kolumny "' + headerName + '" w arkuszu Ustawienia.');
+  sheet.getRange(2, col).setValue(value);
+}
+
 /**
  * URL logo firmy do wyświetlenia w Mini App: jeśli w Ustawienia!logo jest
  * ręcznie wklejony link, ma pierwszeństwo; w przeciwnym razie automatycznie

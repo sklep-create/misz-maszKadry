@@ -106,19 +106,32 @@ function getAvailabilityLimit(employeeId, year, month) {
   return Math.max(daysInMonth - requiredWorkDays, 0);
 }
 
+// Termin zgłoszenia dyspozycyjności na dany miesiąc mija 15 dni przed jego
+// 1. dniem: grafik generuje się 5 dni przed startem okresu (patrz
+// GrafikGeneratorService.gs), a dyspozycyjność trzeba zgłosić 10 dni przed
+// wygenerowaniem grafiku -> 5 + 10 = 15.
+const AVAILABILITY_CUTOFF_DAYS = 15;
+
 /**
- * Miesiące, na które pracownik może obecnie zgłosić dyspozycyjność.
- * Do 10. dnia (włącznie) - najbliższy miesiąc jest dostępny.
- * Po 10. dniu - najbliższy dostępny to kolejny po najbliższym.
+ * Miesiące, na które pracownik może obecnie zgłosić dyspozycyjność: od
+ * najbliższego miesiąca, którego termin (1. dzień minus 15 dni) jeszcze nie
+ * minął, maksymalnie na monthCount (domyślnie 3) miesięcy w przód.
  */
 function getSelectableAvailabilityMonths(monthCount) {
-  const now = new Date();
-  const earliestOffset = now.getDate() <= 10 ? 1 : 2;
-  const count = monthCount || 4;
-  const months = [];
+  const count = monthCount || 3;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
+  let candidate = new Date(today.getFullYear(), today.getMonth(), 1);
+  while (true) {
+    const cutoff = new Date(candidate.getFullYear(), candidate.getMonth(), 1 - AVAILABILITY_CUTOFF_DAYS);
+    if (cutoff >= today) break;
+    candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 1, 1);
+  }
+
+  const months = [];
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + earliestOffset + i, 1);
+    const d = new Date(candidate.getFullYear(), candidate.getMonth() + i, 1);
     months.push({
       value: Utilities.formatDate(d, "CET", "yyyy-MM"),
       label: POLISH_MONTH_NAMES[d.getMonth()] + " " + d.getFullYear()
@@ -130,7 +143,7 @@ function getSelectableAvailabilityMonths(monthCount) {
 
 /** Czy podany miesiąc (YYYY-MM) jest obecnie dozwolony do zgłoszenia. */
 function isMonthSelectable(monthValue) {
-  return getSelectableAvailabilityMonths(12).some(function (m) {
+  return getSelectableAvailabilityMonths(3).some(function (m) {
     return m.value === monthValue;
   });
 }
