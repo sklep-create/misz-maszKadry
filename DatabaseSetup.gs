@@ -136,16 +136,21 @@ function getDatabaseSchema() {
     },
     'Dni wolne': {
       color: '#38A169', // Zielony
-      // Wiersze "Ustawowe" są generowane automatycznie dla 3 lat (poprzedni,
-      // obecny, kolejny) i nadpisywane przy każdym odświeżeniu - nie edytuj
-      // ich ręcznie. Wiersze "Dodatkowe" dopisujesz sam (np. lokalne święto,
-      // dodatkowy dzień zamknięcia sklepu) - te NIE są nigdy kasowane
-      // automatycznie. Patrz refreshDniWolneSheet() w AvailabilityService.gs.
-      headers: ['Data', 'Nazwa', 'Rodzaj'], // Rodzaj: Ustawowe / Dodatkowe
-      // Przykładowy wzór własnego ("Dodatkowe") dnia wolnego - podmień na
-      // realną datę/nazwę. Wiersze "Ustawowe" dopisze samo odświeżenie
-      // (⚙️ System Kadrowy → 📅 Dni wolne → 🔄 Odśwież listę dni wolnych).
-      initialData: [
+      // DWIE OSOBNE tabele obok siebie w tej samej zakładce:
+      // - A-C "Ustawowe": generowane automatycznie dla 3 lat (poprzedni,
+      //   obecny, kolejny), nadpisywane przy każdym odświeżeniu - NIE edytuj
+      //   ręcznie (patrz refreshDniWolneSheet() w AvailabilityService.gs).
+      // - E-G "Własne": dopisujesz/edytujesz sam (lokalne święto, dodatkowy
+      //   dzień zamknięcia sklepu) - odświeżanie nigdy tego nie rusza.
+      headers: ['Data', 'Nazwa', 'Rodzaj'], // A-C, Rodzaj zawsze "Ustawowe"
+      initialData: [],
+      secondBlock: {
+        startColumn: 5, // E
+        color: '#DD6B20', // Pomarańczowy - wizualnie odróżnia od Ustawowe
+        headers: ['Data', 'Nazwa', 'Rodzaj'] // E-G, Rodzaj zawsze "Dodatkowe"
+      },
+      // Przykładowy wzór własnego dnia wolnego - podmień na realną datę/nazwę.
+      secondBlockInitialData: [
         ['2026-12-24', 'Wigilia (dodatkowy dzień wolny sklepu)', 'Dodatkowe']
       ]
     }
@@ -198,6 +203,27 @@ function buildSheetFromSchema(ss, sheetName, config) {
     // Minimalna szerokość kolumny dla estetyki
     if (sheet.getColumnWidth(col) < 120) {
       sheet.setColumnWidth(col, 140);
+    }
+  }
+
+  // 4. Drugi, osobny blok nagłówków obok pierwszego (np. "Dni wolne": A-C
+  // Ustawowe + E-G Własne w tej samej zakładce) - opcjonalny, tylko jeśli
+  // schemat go definiuje.
+  if (config.secondBlock) {
+    const sb = config.secondBlock;
+    const sbHeaderRange = sheet.getRange(1, sb.startColumn, 1, sb.headers.length);
+    sbHeaderRange.setValues([sb.headers]);
+    sbHeaderRange.setBackground(sb.color || config.color)
+                 .setFontColor('#FFFFFF')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center')
+                 .setVerticalAlignment('middle');
+
+    for (let col = sb.startColumn; col < sb.startColumn + sb.headers.length; col++) {
+      sheet.autoResizeColumn(col);
+      if (sheet.getColumnWidth(col) < 120) {
+        sheet.setColumnWidth(col, 140);
+      }
     }
   }
 
@@ -371,7 +397,10 @@ function insertSampleDataIntoActiveSheet() {
     return;
   }
 
-  if (!config.initialData || config.initialData.length === 0) {
+  const hasMainData = config.initialData && config.initialData.length > 0;
+  const hasSecondBlockData = config.secondBlock && config.secondBlockInitialData && config.secondBlockInitialData.length > 0;
+
+  if (!hasMainData && !hasSecondBlockData) {
     ui.alert('ℹ️ Arkusz "' + sheetName + '" nie ma zdefiniowanych przykładowych danych w schemacie.');
     return;
   }
@@ -379,13 +408,20 @@ function insertSampleDataIntoActiveSheet() {
   const response = ui.alert(
     '📋 Wstaw przykładowe dane',
     'Wstawić przykładowe dane do otwartego arkusza "' + sheetName + '"?\n\n' +
-      'Nadpisze to wiersze 2-' + (config.initialData.length + 1) + ' w TYM arkuszu (reszta pliku zostaje bez zmian).',
+      'Nadpisze to odpowiednie wiersze w TYM arkuszu (reszta pliku zostaje bez zmian).',
     ui.ButtonSet.YES_NO
   );
 
   if (response !== ui.Button.YES) return;
 
-  sheet.getRange(2, 1, config.initialData.length, config.headers.length).setValues(config.initialData);
+  if (hasMainData) {
+    sheet.getRange(2, 1, config.initialData.length, config.headers.length).setValues(config.initialData);
+  }
+
+  if (hasSecondBlockData) {
+    sheet.getRange(2, config.secondBlock.startColumn, config.secondBlockInitialData.length, config.secondBlock.headers.length)
+      .setValues(config.secondBlockInitialData);
+  }
 
   ui.alert('✅ Wstawiono przykładowe dane do arkusza "' + sheetName + '".');
 }

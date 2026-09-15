@@ -305,16 +305,24 @@ function pushDaysOffToGoogleBusinessProfile() {
     const locationId = getGoogleBusinessLocationId();
 
     const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
-    const data = sheet.getDataRange().getValues();
+    const lastRow = sheet.getLastRow();
 
-    const periods = [];
-    for (let i = 1; i < data.length; i++) {
-      const dateStr = formatSheetDate(data[i][0]);
-      if (!dateStr) continue;
+    const dateSet = {};
+    if (lastRow > 1) {
+      // Blok "Ustawowe" (kolumna A) + blok "Własne" (kolumna E)
+      [1, 5].forEach(function (col) {
+        sheet.getRange(2, col, lastRow - 1, 1).getValues().forEach(function (row) {
+          const dateStr = formatSheetDate(row[0]);
+          if (dateStr) dateSet[dateStr] = true;
+        });
+      });
+    }
+
+    const periods = Object.keys(dateSet).map(function (dateStr) {
       const parts = dateStr.split('-').map(Number);
       const gbpDate = { year: parts[0], month: parts[1], day: parts[2] };
-      periods.push({ startDate: gbpDate, endDate: gbpDate, closed: true });
-    }
+      return { startDate: gbpDate, endDate: gbpDate, closed: true };
+    });
 
     const response = UrlFetchApp.fetch(
       'https://mybusinessbusinessinformation.googleapis.com/v1/' + locationId + '?updateMask=specialHours',
@@ -361,11 +369,25 @@ function pullDaysOffFromGoogleBusinessProfile() {
     }
 
     const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
-    const existing = sheet.getDataRange().getValues();
+    const lastRow = sheet.getLastRow();
     const existingDates = {};
-    for (let i = 1; i < existing.length; i++) {
-      const dateStr = formatSheetDate(existing[i][0]);
-      if (dateStr) existingDates[dateStr] = true;
+    let lastCustomRow = 1; // wiersz nagłówka bloku "Własne" (E-G)
+
+    if (lastRow > 1) {
+      // Blok "Ustawowe" (A) - tylko do sprawdzenia duplikatów, nigdy nie dopisujemy tutaj.
+      sheet.getRange(2, 1, lastRow - 1, 1).getValues().forEach(function (row) {
+        const dateStr = formatSheetDate(row[0]);
+        if (dateStr) existingDates[dateStr] = true;
+      });
+
+      // Blok "Własne" (E) - duplikaty + ostatni zajęty wiersz, żeby wiedzieć gdzie dopisać.
+      sheet.getRange(2, 5, lastRow - 1, 1).getValues().forEach(function (row, idx) {
+        const dateStr = formatSheetDate(row[0]);
+        if (dateStr) {
+          existingDates[dateStr] = true;
+          lastCustomRow = idx + 2;
+        }
+      });
     }
 
     const periods = (data.specialHours && data.specialHours.specialHourPeriods) || [];
@@ -374,17 +396,17 @@ function pullDaysOffFromGoogleBusinessProfile() {
       if (!period.closed || !period.startDate) return;
       const sd = period.startDate;
       const dateStr = sd.year + '-' + ('0' + sd.month).slice(-2) + '-' + ('0' + sd.day).slice(-2);
-      if (existingDates[dateStr]) return; // już jest w arkuszu - nie dubluj
+      if (existingDates[dateStr]) return; // już jest w arkuszu (dowolny blok) - nie dubluj
 
       newRows.push([dateStr, 'Z Google Wizytówki', 'Dodatkowe']);
       existingDates[dateStr] = true;
     });
 
     if (newRows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 3).setValues(newRows);
+      sheet.getRange(lastCustomRow + 1, 5, newRows.length, 3).setValues(newRows);
     }
 
-    return _reportResult('✅ Pobrano z Google Wizytówki: dopisano ' + newRows.length + ' nowych dni wolnych do arkusza "Dni wolne" (' + periods.length + ' zamkniętych dni znalezionych na Wizytówce łącznie).');
+    return _reportResult('✅ Pobrano z Google Wizytówki: dopisano ' + newRows.length + ' nowych dni do bloku "Własne" w arkuszu "Dni wolne" (' + periods.length + ' zamkniętych dni znalezionych na Wizytówce łącznie).');
   } catch (err) {
     return _reportResult('❌ Błąd: ' + err.toString());
   }

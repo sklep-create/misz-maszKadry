@@ -87,14 +87,6 @@ function getPolishHolidaysWithNames(year) {
  */
 function refreshDniWolneSheet() {
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
-  const data = sheet.getDataRange().getValues();
-
-  const customRows = [];
-  for (let i = 1; i < data.length; i++) {
-    if ((data[i][2] || '').toString().trim() === 'Dodatkowe') {
-      customRows.push([formatSheetDate(data[i][0]), data[i][1], 'Dodatkowe']);
-    }
-  }
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
@@ -104,33 +96,19 @@ function refreshDniWolneSheet() {
       statutoryRows.push([Utilities.formatDate(h.date, 'CET', 'yyyy-MM-dd'), h.name, 'Ustawowe']);
     });
   });
+  statutoryRows.sort(function (a, b) { return a[0].localeCompare(b[0]); });
 
-  const allRows = statutoryRows.concat(customRows).sort(function (a, b) {
-    return a[0].localeCompare(b[0]);
-  });
-
-  sheet.clear();
-  const headers = ['Data', 'Nazwa', 'Rodzaj'];
-  const headerRange = sheet.getRange(1, 1, 1, headers.length);
-  headerRange.setValues([headers]);
-  headerRange.setBackground('#38A169')
-    .setFontColor('#FFFFFF')
-    .setFontWeight('bold')
-    .setHorizontalAlignment('center')
-    .setVerticalAlignment('middle');
-  sheet.setRowHeight(1, 35);
-  sheet.setFrozenRows(1);
-
-  if (allRows.length > 0) {
-    sheet.getRange(2, 1, allRows.length, 3).setValues(allRows);
+  // Czyści TYLKO blok "Ustawowe" (kolumny A-C) - blok "Własne" (E-G) i
+  // nagłówki zostają nietknięte.
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, 3).clearContent();
+  }
+  if (statutoryRows.length > 0) {
+    sheet.getRange(2, 1, statutoryRows.length, 3).setValues(statutoryRows);
   }
 
-  for (let col = 1; col <= 3; col++) {
-    sheet.autoResizeColumn(col);
-    if (sheet.getColumnWidth(col) < 120) sheet.setColumnWidth(col, 140);
-  }
-
-  let msg = '✅ Odświeżono "Dni wolne": ' + statutoryRows.length + ' ustawowych (lata ' + years.join(', ') + ') + ' + customRows.length + ' dodatkowych.';
+  let msg = '✅ Odświeżono "Dni wolne" (Ustawowe): ' + statutoryRows.length + ' świąt (lata ' + years.join(', ') + '). Blok "Własne" (E-G) pozostał bez zmian.';
 
   // Best-effort: wyślij od razu do Google Wizytówki. Nie przerywa odświeżenia
   // arkusza, jeśli My Business API jest jeszcze zablokowane (limit Google) -
@@ -189,12 +167,23 @@ function getCompanyDaysOffSet(startDate, endDate) {
 
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
   if (sheet) {
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      const dateStr = formatSheetDate(data[i][0]);
-      if (!dateStr) continue;
-      set[dateStr] = data[i][1] || 'Dzień wolny';
-      coveredYears.add(Number(dateStr.slice(0, 4)));
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      // Blok "Ustawowe" (A-B: Data, Nazwa)
+      sheet.getRange(2, 1, lastRow - 1, 2).getValues().forEach(function (row) {
+        const dateStr = formatSheetDate(row[0]);
+        if (!dateStr) return;
+        set[dateStr] = row[1] || 'Dzień wolny';
+        coveredYears.add(Number(dateStr.slice(0, 4)));
+      });
+
+      // Blok "Własne" (E-F: Data, Nazwa) - nie liczy się do coveredYears,
+      // żeby brak Ustawowych w danym roku nadal dociągał się awaryjnie.
+      sheet.getRange(2, 5, lastRow - 1, 2).getValues().forEach(function (row) {
+        const dateStr = formatSheetDate(row[0]);
+        if (!dateStr) return;
+        set[dateStr] = row[1] || 'Dzień wolny';
+      });
     }
   }
 
