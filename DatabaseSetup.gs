@@ -188,6 +188,51 @@ function buildSheetFromSchema(ss, sheetName, config) {
 }
 
 /**
+ * Dopisuje do arkusza Ustawienia brakujące nagłówki kolumn ze schematu, BEZ
+ * ruszania istniejących danych - bezpieczne uzupełnienie żywego arkusza po
+ * dodaniu nowych ustawień do generatora (np. DNI_GRAFIKU). Uruchom RAZ z
+ * edytora albo menu, kiedy schemat się zmieni.
+ */
+function ensureSettingsColumnsExist() {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
+  const schema = getDatabaseSchema()['Ustawienia'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+
+  const missing = schema.headers.filter(function (h) {
+    return existingHeaders.indexOf(h) === -1;
+  });
+
+  let msg;
+  if (missing.length === 0) {
+    msg = 'ℹ️ Wszystkie kolumny ze schematu już istnieją w Ustawieniach.';
+  } else {
+    const startCol = lastCol + 1;
+    const headerRange = sheet.getRange(1, startCol, 1, missing.length);
+    headerRange.setValues([missing]);
+    headerRange.setBackground(schema.color)
+      .setFontColor('#FFFFFF')
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle');
+
+    for (let i = 0; i < missing.length; i++) {
+      sheet.autoResizeColumn(startCol + i);
+    }
+
+    msg = '✅ Dodano brakujące kolumny: ' + missing.join(', ');
+  }
+
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
  * Generuje / regeneruje WSZYSTKIE arkusze systemu od zera (czyści istniejące).
  * Użyj przy pierwszym uruchomieniu — na arkuszu z prawdziwymi danymi
  * skorzystaj raczej z "🔁 Przebuduj wybrany arkusz od nowa", żeby nie
