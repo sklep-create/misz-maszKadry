@@ -32,9 +32,12 @@ function onOpen() {
     .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage');
 
   const businessProfileMenu = ui.createMenu('🏢 Google Wizytówka')
-    .addItem('🔍 Znajdź lokalizację Google Wizytówki', 'listGoogleBusinessAccountsAndLocations')
-    .addItem('⬇️ Pobierz godziny z Google Wizytówki', 'pullHoursFromGoogleBusinessProfile')
-    .addItem('⬆️ Wyślij godziny do Google Wizytówki', 'pushHoursToGoogleBusinessProfile');
+    .addItem('🔍 Znajdź lokalizację Google Wizytówki (My Business API)', 'listGoogleBusinessAccountsAndLocations')
+    .addItem('⬇️ Pobierz godziny (publiczne Places API, działa od razu)', 'pullHoursFromPublicPlacesApi')
+    .addItem('⏰ Zainstaluj automatyczne pobieranie godzin (raz)', 'installHoursSyncTrigger')
+    .addSeparator()
+    .addItem('⬇️ Pobierz godziny (My Business API, wymaga limitu Google)', 'pullHoursFromGoogleBusinessProfile')
+    .addItem('⬆️ Wyślij godziny do Google Wizytówki (My Business API)', 'pushHoursToGoogleBusinessProfile');
 
   const grafikMenu = ui.createMenu('🗓️ Grafik')
     .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'installGrafikGenerationTrigger')

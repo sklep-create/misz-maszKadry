@@ -152,6 +152,95 @@ function pullHoursFromGoogleBusinessProfile() {
   }
 }
 
+/** Format "8.30" z obiektu {hour, minute} zwracanego przez Places API (New). */
+function _formatPlacesTime(timeObj) {
+  const hour = (timeObj && timeObj.hour) || 0;
+  const minute = (timeObj && timeObj.minute) || 0;
+  return hour + '.' + ('0' + minute).slice(-2);
+}
+
+// Places API (New): open.day to liczba 0-6, gdzie 0 = Niedziela (jak JS Date.getDay()).
+const GBP_PLACES_DAY_NAMES = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
+
+/**
+ * Pobiera godziny otwarcia z PUBLICZNEGO Places API (New) - ten sam
+ * mechanizm, którego już używa strona misz-masz.cc (assets/js/hours.js) do
+ * pokazywania godzin na żywo. W przeciwieństwie do pullHoursFromGoogleBusinessProfile
+ * (My Business API) NIE wymaga uprawnień właściciela wizytówki ani zwiększania
+ * limitu zapytań przez Google - działa od razu na kluczu API + Place ID
+ * zapisanych w Ustawienia!GOOGLE_PLACES_API_KEY / GOOGLE_PLACE_ID.
+ */
+function pullHoursFromPublicPlacesApi() {
+  try {
+    const apiKey = (getSettingValue('GOOGLE_PLACES_API_KEY') || '').toString().trim();
+    const placeId = (getSettingValue('GOOGLE_PLACE_ID') || '').toString().trim();
+
+    if (!apiKey || !placeId) {
+      return _reportResult('❌ Brak GOOGLE_PLACES_API_KEY albo GOOGLE_PLACE_ID w arkuszu Ustawienia.');
+    }
+
+    const url = 'https://places.googleapis.com/v1/places/' + placeId + '?fields=regularOpeningHours';
+    const response = UrlFetchApp.fetch(url, {
+      headers: { 'X-Goog-Api-Key': apiKey },
+      muteHttpExceptions: true
+    });
+    const data = JSON.parse(response.getContentText());
+
+    if (data.error) {
+      return _reportResult('❌ Błąd Places API:\n' + JSON.stringify(data.error));
+    }
+
+    const hoursMap = {};
+    GBP_PLACES_DAY_NAMES.forEach(function (plName) { hoursMap[plName] = null; });
+
+    const periods = (data.regularOpeningHours && data.regularOpeningHours.periods) || [];
+    periods.forEach(function (period) {
+      if (!period.open) return;
+      const plName = GBP_PLACES_DAY_NAMES[period.open.day];
+      if (!plName) return;
+      const closeTime = period.close || period.open;
+      hoursMap[plName] = _formatPlacesTime(period.open) + ' - ' + _formatPlacesTime(closeTime);
+    });
+
+    setWeeklyWorkingHours(hoursMap);
+
+    const summary = Object.keys(hoursMap).map(function (d) {
+      return d + ': ' + (hoursMap[d] || 'zamknięte');
+    }).join('\n');
+
+    return _reportResult('✅ Pobrano godziny (publiczne Places API) i zapisano w arkuszu Ustawienia:\n\n' + summary);
+  } catch (err) {
+    return _reportResult('❌ Błąd: ' + err.toString());
+  }
+}
+
+/**
+ * Instaluje codzienny trigger automatycznie pobierający godziny z Wizytówki
+ * (publiczne Places API) do arkusza Ustawienia. Uruchom RAZ z menu.
+ */
+function installHoursSyncTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'pullHoursFromPublicPlacesApi') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('pullHoursFromPublicPlacesApi')
+    .timeBased()
+    .everyDays(1)
+    .atHour(5)
+    .create();
+
+  const msg = '✅ Zainstalowano automatyczne pobieranie godzin z Wizytówki (codziennie ok. 5:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
 /**
  * Wysyła godziny otwarcia z tabeli "dni pracy" / "godziny pracy" (arkusz
  * Ustawienia) do Google Wizytówki, nadpisując tam obecny harmonogram.
