@@ -46,7 +46,8 @@ function onOpen() {
 
   const daysOffMenu = ui.createMenu('📅 Dni wolne')
     .addItem('🔄 Odśwież listę dni wolnych (poprzedni/obecny/kolejny rok)', 'refreshDniWolneSheet')
-    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'installDniWolneRefreshTrigger');
+    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'installDniWolneRefreshTrigger')
+    .addItem('⬆️ Wyślij dni wolne do Google Wizytówki (My Business API)', 'pushDaysOffToGoogleBusinessProfile');
 
   ui.createMenu('⚙️ System Kadrowy')
     .addSubMenu(setupMenu)

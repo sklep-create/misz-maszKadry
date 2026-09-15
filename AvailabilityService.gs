@@ -130,7 +130,18 @@ function refreshDniWolneSheet() {
     if (sheet.getColumnWidth(col) < 120) sheet.setColumnWidth(col, 140);
   }
 
-  const msg = '✅ Odświeżono "Dni wolne": ' + statutoryRows.length + ' ustawowych (lata ' + years.join(', ') + ') + ' + customRows.length + ' dodatkowych.';
+  let msg = '✅ Odświeżono "Dni wolne": ' + statutoryRows.length + ' ustawowych (lata ' + years.join(', ') + ') + ' + customRows.length + ' dodatkowych.';
+
+  // Best-effort: wyślij od razu do Google Wizytówki. Nie przerywa odświeżenia
+  // arkusza, jeśli My Business API jest jeszcze zablokowane (limit Google) -
+  // patrz pushDaysOffToGoogleBusinessProfile w BusinessProfileService.gs.
+  try {
+    const pushResult = pushDaysOffToGoogleBusinessProfile();
+    msg += '\n\n' + pushResult;
+  } catch (err) {
+    msg += '\n\n⚠️ Nie udało się wysłać do Google Wizytówki: ' + err.toString();
+  }
+
   Logger.log(msg);
   try {
     SpreadsheetApp.getUi().alert(msg);

@@ -289,3 +289,51 @@ function pushHoursToGoogleBusinessProfile() {
     return _reportResult('❌ Błąd: ' + err.toString());
   }
 }
+
+/**
+ * Wysyła WSZYSTKIE dni z arkusza "Dni wolne" (ustawowe święta + własne
+ * dodatkowe dni zamknięcia) do Google Wizytówki jako specialHours - dzięki
+ * temu Mapy Google (a przez publiczne Places API też strona misz-masz.cc)
+ * pokażą sklep jako zamknięty w te konkretne dni, niezależnie od zwykłego
+ * tygodniowego harmonogramu. Używa tego samego My Business Business
+ * Information API co pushHoursToGoogleBusinessProfile - zablokowane do
+ * czasu zwiększenia limitu przez Google (patrz notatka w CLAUDE.md).
+ */
+function pushDaysOffToGoogleBusinessProfile() {
+  try {
+    const token = ScriptApp.getOAuthToken();
+    const locationId = getGoogleBusinessLocationId();
+
+    const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
+    const data = sheet.getDataRange().getValues();
+
+    const periods = [];
+    for (let i = 1; i < data.length; i++) {
+      const dateStr = formatSheetDate(data[i][0]);
+      if (!dateStr) continue;
+      const parts = dateStr.split('-').map(Number);
+      const gbpDate = { year: parts[0], month: parts[1], day: parts[2] };
+      periods.push({ startDate: gbpDate, endDate: gbpDate, closed: true });
+    }
+
+    const response = UrlFetchApp.fetch(
+      'https://mybusinessbusinessinformation.googleapis.com/v1/' + locationId + '?updateMask=specialHours',
+      {
+        method: 'patch',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + token },
+        payload: JSON.stringify({ specialHours: { specialHourPeriods: periods } }),
+        muteHttpExceptions: true
+      }
+    );
+
+    const result = JSON.parse(response.getContentText());
+    if (result.error) {
+      return _reportResult('❌ Błąd aktualizacji dni wolnych w Google Wizytówce:\n' + JSON.stringify(result.error));
+    }
+
+    return _reportResult('✅ Zaktualizowano ' + periods.length + ' dni wolnych (zamkniętych) w Google Wizytówce.');
+  } catch (err) {
+    return _reportResult('❌ Błąd: ' + err.toString());
+  }
+}
