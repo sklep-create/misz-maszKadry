@@ -25,16 +25,17 @@ function getDatabaseSchema() {
         'DNI_GRAFIKU',           // liczba dni okresu grafiku (np. 14, 20); puste = cały kalendarzowy miesiąc. Patrz getNextGrafikPeriod() w GrafikGeneratorService.gs.
         'OSTATNI_DZIEN_GRAFIKU', // YYYY-MM-DD ostatniego dnia już wygenerowanego okresu - ustawiane automatycznie, nie edytuj ręcznie.
         'GOOGLE_PLACES_API_KEY', // klucz do publicznego Places API (New) - ten sam, którego używa strona misz-masz.cc do pokazywania godzin na żywo.
-        'GOOGLE_PLACE_ID'        // ID lokalizacji w Google Maps - też ten sam co na stronie.
+        'GOOGLE_PLACE_ID',       // ID lokalizacji w Google Maps - też ten sam co na stronie.
+        'APPS_SCRIPT_EDITOR_URL' // Link do edytora Apps Script (standalone projekt) - "Rozszerzenia → Apps Script" w arkuszu NIE otwiera tego projektu (patrz notatka o migracji w CLAUDE.md), więc link trzeba trzymać tutaj.
       ],
       initialData: [
-        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '']
+        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit'],
+        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '', '']
       ]
     },
     'Pracownicy': {
