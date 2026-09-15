@@ -251,3 +251,36 @@ function zainstalujAutomatycznyBackupArkusza() {
   }
   return msg;
 }
+
+/**
+ * ⚠️ NIEBEZPIECZNE - usuwa WSZYSTKIE zakładki w arkuszu (cały skoroszyt
+ * zostaje pusty). Google Sheets nie pozwala usunąć ostatniej zakładki, więc
+ * zostaje jedna pusta "Arkusz1" - potem użyj generatora (⚙️ System Kadrowy →
+ * 🗄️ Baza danych → 🚀 Wygeneruj całą bazę danych od nowa), żeby odtworzyć
+ * strukturę od zera. Do testowania generatora - NIEODWRACALNE bez wcześniej
+ * zrobionego backupu (💾 Zrób backup teraz).
+ * Celowo NIE ma tego w menu arkusza - uruchamiaj WYŁĄCZNIE ręcznie z edytora.
+ */
+function usunWszystkieDane() {
+  const ss = getSpreadsheet();
+  const tempSheet = ss.insertSheet('__tymczasowy__' + Utilities.getUuid().slice(0, 8));
+
+  const sheetsToDelete = ss.getSheets().filter(function (s) {
+    return s.getSheetId() !== tempSheet.getSheetId();
+  });
+
+  sheetsToDelete.forEach(function (s) {
+    ss.deleteSheet(s);
+  });
+
+  tempSheet.setName('Arkusz1');
+
+  const msg = '🗑️ Usunięto wszystkie zakładki (' + sheetsToDelete.length + '). Zostaje pusty "Arkusz1" - użyj generatora, żeby odtworzyć strukturę.';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
