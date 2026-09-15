@@ -143,15 +143,16 @@ function pokazDialogPrzywracaniaBackupu() {
 }
 
 /**
- * Nadpisuje każdą zakładkę bieżącego arkusza odpowiadającą (po nazwie)
- * zakładką z pliku backupu - pełna wierność (formatowanie, formuły), nie
- * tylko wartości. Zakładki istniejące w backupie, ale nie w bieżącym
- * arkuszu, są dodawane; zakładki bieżące bez odpowiednika w backupie
- * zostają nietknięte (backup ich po prostu nie dotyczy).
+ * Przywraca arkusz DOKŁADNIE do stanu z backupu - pełna wierność
+ * (formatowanie, formuły), nie tylko wartości. Zakładki z backupu nadpisują
+ * (po nazwie) odpowiadające bieżące; zakładki bieżące BEZ odpowiednika w
+ * backupie są USUWANE (backup jest pełnym źródłem prawdy, np. testowy
+ * "Arkusz1" po usunWszystkieDane() zniknie po przywróceniu).
  */
 function przywrocDaneZBackupu(backupFileId) {
   const liveSs = getSpreadsheet();
   const backupSs = SpreadsheetApp.openById(backupFileId);
+  const backupSheetNames = backupSs.getSheets().map(function (s) { return s.getName(); });
 
   let restoredCount = 0;
   backupSs.getSheets().forEach(function (backupSheet) {
@@ -175,5 +176,21 @@ function przywrocDaneZBackupu(backupFileId) {
     restoredCount++;
   });
 
-  return '✅ Przywrócono ' + restoredCount + ' zakładek z backupu "' + backupSs.getName() + '".';
+  // Zakładki bieżące, których nie ma w backupie, zostają usunięte - backup
+  // jest pełnym źródłem prawdy o stanie arkusza. Bezpieczne: przywrócone
+  // zakładki z backupu są już na miejscu, więc skoroszyt nigdy nie zostaje
+  // bez żadnej zakładki.
+  let removedCount = 0;
+  liveSs.getSheets().forEach(function (sheet) {
+    if (backupSheetNames.indexOf(sheet.getName()) === -1) {
+      liveSs.deleteSheet(sheet);
+      removedCount++;
+    }
+  });
+
+  let msg = '✅ Przywrócono ' + restoredCount + ' zakładek z backupu "' + backupSs.getName() + '".';
+  if (removedCount > 0) {
+    msg += '\n🗑️ Usunięto ' + removedCount + ' zakładek, których nie było w backupie.';
+  }
+  return msg;
 }
