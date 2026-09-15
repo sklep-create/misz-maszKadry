@@ -21,32 +21,28 @@ function onOpen() {
     .addItem('📡 Ustaw Deployment ID dla Webhook\'a', 'setWebhookDeploymentId')
     .addItem('🌐 Ustaw URL Proxy (Cloudflare) dla Webhooka', 'setTelegramWebhookProxyUrl');
 
-  const diagnosticsMenu = ui.createMenu('🛠️ Narzędzia Bota (diagnostyka)')
-    .addItem('🔍 Pełna diagnostyka bota', 'runFullBotDiagnostics')
-    .addItem('🤖 Sprawdź token bota (getMe)', 'telegramGetMe')
-    .addItem('📡 Pokaż webhook info', 'telegramGetWebhookInfo')
-    .addItem('🔗 Ustaw webhook (z zapisanych danych)', 'telegramSetWebhookNow')
-    .addItem('🧹 Wyczyść pendną kolejkę (flush)', 'telegramFlushUpdates')
-    .addItem('☰ Ustaw przycisk Menu (Panel Pracownika)', 'telegramSetMenuButton')
-    .addItem('🗑️ USUŃ webhook (reset)', 'telegramResetWebhook')
-    .addItem('✉️ Wyślij wiadomość testową', 'telegramSendTestMessage');
+  // Narzędzia Bota (diagnostyka) celowo NIE są w menu arkusza - uruchamia się
+  // je wyłącznie z edytora Apps Script (lista funkcji → Uruchom ▶):
+  // runFullBotDiagnostics, telegramGetMe, telegramGetWebhookInfo,
+  // telegramSetWebhookNow, telegramFlushUpdates, telegramSetMenuButton,
+  // telegramResetWebhook, telegramSendTestMessage (wszystkie w TelegramBotTools.gs).
 
   const businessProfileMenu = ui.createMenu('🏢 Google Wizytówka')
     .addItem('🔍 Znajdź lokalizację Google Wizytówki (My Business API)', 'listGoogleBusinessAccountsAndLocations')
     .addItem('⬇️ Pobierz godziny (publiczne Places API, działa od razu)', 'pullHoursFromPublicPlacesApi')
-    .addItem('⏰ Zainstaluj automatyczne pobieranie godzin (raz)', 'installHoursSyncTrigger')
+    .addItem('⏰ Zainstaluj automatyczne pobieranie godzin (raz)', 'installAutoPullHoursDaily')
     .addSeparator()
     .addItem('⬇️ Pobierz godziny (My Business API, wymaga limitu Google)', 'pullHoursFromGoogleBusinessProfile')
     .addItem('⬆️ Wyślij godziny do Google Wizytówki (My Business API)', 'pushHoursToGoogleBusinessProfile');
 
   const grafikMenu = ui.createMenu('🗓️ Grafik')
-    .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'installGrafikGenerationTrigger')
+    .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'installAutoGenerateGrafikDaily')
     .addItem('🔁 Wygeneruj następny okres teraz (ręcznie/test)', 'generateGrafikNowForced')
     .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport');
 
   const daysOffMenu = ui.createMenu('📅 Dni wolne')
     .addItem('🔄 Odśwież listę dni wolnych (poprzedni/obecny/kolejny rok)', 'refreshDniWolneSheet')
-    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'installDniWolneRefreshTrigger')
+    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'installAutoRefreshDniWolneMonthly')
     .addItem('⬇️ Pobierz dni wolne z Google Wizytówki', 'pullDaysOffFromGoogleBusinessProfile')
     .addItem('⬆️ Wyślij dni wolne do Google Wizytówki i strony', 'pushDaysOffToGoogleBusinessProfile');
 
@@ -60,7 +56,6 @@ function onOpen() {
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
     .addSeparator()
-    .addSubMenu(diagnosticsMenu)
     .addSubMenu(businessProfileMenu)
     .addToUi();
 }

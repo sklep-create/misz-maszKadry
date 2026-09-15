@@ -158,7 +158,7 @@ function generateGrafikForPeriod(startDate, endDate) {
 
 /**
  * Wywoływane codziennie przez zainstalowany trigger czasowy
- * (installGrafikGenerationTrigger). Jeśli dziś jest dokładnie 5 dni przed
+ * (installAutoGenerateGrafikDaily w MaintenanceTools.gs). Jeśli dziś jest dokładnie 5 dni przed
  * startem następnego okresu - generuje go i wysyła powiadomienia Telegram
  * (pracodawcy zawsze, z ostrzeżeniem o dniach bez obsady jeśli są; każdemu
  * pracownikowi krótką informację że grafik jest gotowy).
@@ -210,30 +210,6 @@ function _runGrafikGeneration(period) {
   }
 
   return employerMsg;
-}
-
-/** Instaluje codzienny trigger sprawdzający czy pora wygenerować grafik. Uruchom RAZ z menu. */
-function installGrafikGenerationTrigger() {
-  ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    if (trigger.getHandlerFunction() === 'checkAndGenerateGrafikIfDue') {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
-
-  ScriptApp.newTrigger('checkAndGenerateGrafikIfDue')
-    .timeBased()
-    .everyDays(1)
-    .atHour(6)
-    .create();
-
-  const msg = '✅ Zainstalowano automatyczne generowanie grafiku (codzienne sprawdzanie o ok. 6:00).';
-  Logger.log(msg);
-  try {
-    SpreadsheetApp.getUi().alert(msg);
-  } catch (e) {
-    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
-  }
-  return msg;
 }
 
 /**

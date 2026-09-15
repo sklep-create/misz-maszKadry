@@ -215,33 +215,6 @@ function pullHoursFromPublicPlacesApi() {
 }
 
 /**
- * Instaluje codzienny trigger automatycznie pobierający godziny z Wizytówki
- * (publiczne Places API) do arkusza Ustawienia. Uruchom RAZ z menu.
- */
-function installHoursSyncTrigger() {
-  ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    if (trigger.getHandlerFunction() === 'pullHoursFromPublicPlacesApi') {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
-
-  ScriptApp.newTrigger('pullHoursFromPublicPlacesApi')
-    .timeBased()
-    .everyDays(1)
-    .atHour(5)
-    .create();
-
-  const msg = '✅ Zainstalowano automatyczne pobieranie godzin z Wizytówki (codziennie ok. 5:00).';
-  Logger.log(msg);
-  try {
-    SpreadsheetApp.getUi().alert(msg);
-  } catch (e) {
-    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
-  }
-  return msg;
-}
-
-/**
  * Wysyła godziny otwarcia z tabeli "dni pracy" / "godziny pracy" (arkusz
  * Ustawienia) do Google Wizytówki, nadpisując tam obecny harmonogram.
  */

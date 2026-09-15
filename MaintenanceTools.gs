@@ -1,7 +1,8 @@
 /**
- * Funkcje diagnostyczne uruchamiane ręcznie z edytora Apps Script -
- * sprawdzanie autoryzacji, uprawnień i konfiguracji. Nie są wywoływane
- * automatycznie przez bota ani Mini App.
+ * Narzędzia serwisowe uruchamiane RĘCZNIE z edytora Apps Script (lista
+ * funkcji → Uruchom ▶) albo raz z menu - jednorazowe instalatory
+ * automatyzacji (triggery), migracja/konfiguracja projektu i diagnostyka
+ * autoryzacji. Nie są wywoływane automatycznie przez bota ani Mini App.
  */
 
 /**
@@ -128,4 +129,88 @@ function debugTelegramBotPhoto() {
 
   const freshUri = getTelegramBotPhotoDataUri();
   Logger.log('getTelegramBotPhotoDataUri() zwraca ' + freshUri.length + ' znaków' + (freshUri ? (' (zaczyna się od: ' + freshUri.slice(0, 40) + '...)') : ' (puste - brak zdjęcia bota)'));
+}
+
+/**
+ * JEDNORAZOWY instalator: włącza codzienne automatyczne pobieranie godzin
+ * otwarcia z Google Wizytówki (publiczne Places API) do arkusza Ustawienia.
+ * Uruchom RAZ z menu (⚙️ System Kadrowy → 🏢 Google Wizytówka).
+ */
+function installAutoPullHoursDaily() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'pullHoursFromPublicPlacesApi') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('pullHoursFromPublicPlacesApi')
+    .timeBased()
+    .everyDays(1)
+    .atHour(5)
+    .create();
+
+  const msg = '✅ Zainstalowano automatyczne pobieranie godzin z Wizytówki (codziennie ok. 5:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
+ * JEDNORAZOWY instalator: włącza codzienne automatyczne generowanie Grafiku
+ * (sprawdza codziennie czy to dokładnie 5 dni przed startem kolejnego okresu
+ * i jeśli tak, generuje go). Uruchom RAZ z menu (⚙️ System Kadrowy → 🗓️ Grafik).
+ */
+function installAutoGenerateGrafikDaily() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'checkAndGenerateGrafikIfDue') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('checkAndGenerateGrafikIfDue')
+    .timeBased()
+    .everyDays(1)
+    .atHour(6)
+    .create();
+
+  const msg = '✅ Zainstalowano automatyczne generowanie grafiku (codzienne sprawdzanie o ok. 6:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
+ * JEDNORAZOWY instalator: włącza comiesięczne automatyczne odświeżanie
+ * rolowanego okna 3 lat (poprzedni/obecny/kolejny) w arkuszu "Dni wolne".
+ * Uruchom RAZ z menu (⚙️ System Kadrowy → 📅 Dni wolne).
+ */
+function installAutoRefreshDniWolneMonthly() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'refreshDniWolneSheet') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('refreshDniWolneSheet')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(4)
+    .create();
+
+  const msg = '✅ Zainstalowano comiesięczne odświeżanie "Dni wolne" (1. dnia miesiąca, ok. 4:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
 }

@@ -82,7 +82,7 @@ function getPolishHolidaysWithNames(year) {
  * (poprzedni, obecny, kolejny), zachowując nietknięte wszystkie wiersze
  * "Dodatkowe" (ręcznie dopisane przez pracodawcę - np. lokalne święto albo
  * dodatkowy dzień zamknięcia sklepu). Wywoływane co miesiąc przez trigger
- * (installDniWolneRefreshTrigger) - okno lat samo "jedzie" do przodu z
+ * (installAutoRefreshDniWolneMonthly w MaintenanceTools.gs) - okno lat samo "jedzie" do przodu z
  * upływem czasu, bez ręcznej ingerencji.
  */
 function refreshDniWolneSheet() {
@@ -125,30 +125,6 @@ function refreshDniWolneSheet() {
     SpreadsheetApp.getUi().alert(msg);
   } catch (e) {
     // Brak kontekstu UI (np. trigger) - wynik jest w Logger.log powyżej.
-  }
-  return msg;
-}
-
-/** Instaluje comiesięczny trigger odświeżający okno lat w "Dni wolne". Uruchom RAZ z menu. */
-function installDniWolneRefreshTrigger() {
-  ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    if (trigger.getHandlerFunction() === 'refreshDniWolneSheet') {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
-
-  ScriptApp.newTrigger('refreshDniWolneSheet')
-    .timeBased()
-    .onMonthDay(1)
-    .atHour(4)
-    .create();
-
-  const msg = '✅ Zainstalowano comiesięczne odświeżanie "Dni wolne" (1. dnia miesiąca, ok. 4:00).';
-  Logger.log(msg);
-  try {
-    SpreadsheetApp.getUi().alert(msg);
-  } catch (e) {
-    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
   }
   return msg;
 }
