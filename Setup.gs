@@ -46,12 +46,18 @@ function onOpen() {
     .addItem('⬇️ Pobierz dni wolne z Google Wizytówki', 'pullDaysOffFromGoogleBusinessProfile')
     .addItem('⬆️ Wyślij dni wolne do Google Wizytówki i strony', 'pushDaysOffToGoogleBusinessProfile');
 
+  const backupMenu = ui.createMenu('💾 Kopie zapasowe')
+    .addItem('💾 Zrób backup teraz (ręcznie)', 'wykonajBackupArkusza')
+    .addItem('⏰ Zainstaluj automatyczny backup (raz)', 'zainstalujAutomatycznyBackupArkusza')
+    .addItem('♻️ Przywróć dane z backupu...', 'pokazDialogPrzywracaniaBackupu');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addSubMenu(setupMenu)
     .addSubMenu(databaseMenu)
     .addSubMenu(webhookMenu)
     .addSubMenu(grafikMenu)
     .addSubMenu(daysOffMenu)
+    .addSubMenu(backupMenu)
     .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')

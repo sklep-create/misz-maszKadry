@@ -214,3 +214,33 @@ function zainstalujAutomatyczneOdswiezanieDniWolnych() {
   }
   return msg;
 }
+
+/**
+ * JEDNORAZOWY instalator: włącza automatyczny backup arkusza co N dni
+ * (N z Ustawienia!BACKUP_CO_DNI, domyślnie 7). Uruchom RAZ z menu
+ * (⚙️ System Kadrowy → 💾 Kopie zapasowe).
+ */
+function zainstalujAutomatycznyBackupArkusza() {
+  const dniCoIle = Number(getSettingValue('BACKUP_CO_DNI')) || 7;
+
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'wykonajBackupArkusza') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('wykonajBackupArkusza')
+    .timeBased()
+    .everyDays(dniCoIle)
+    .atHour(3)
+    .create();
+
+  const msg = '✅ Zainstalowano automatyczny backup arkusza co ' + dniCoIle + ' dni (ok. 3:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
