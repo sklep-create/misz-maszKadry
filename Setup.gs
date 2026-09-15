@@ -44,11 +44,16 @@ function onOpen() {
     .addItem('🔁 Wygeneruj następny okres teraz (ręcznie/test)', 'generateGrafikNowForced')
     .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport');
 
+  const daysOffMenu = ui.createMenu('📅 Dni wolne')
+    .addItem('🔄 Odśwież listę dni wolnych (poprzedni/obecny/kolejny rok)', 'refreshDniWolneSheet')
+    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'installDniWolneRefreshTrigger');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addSubMenu(setupMenu)
     .addSubMenu(databaseMenu)
     .addSubMenu(webhookMenu)
     .addSubMenu(grafikMenu)
+    .addSubMenu(daysOffMenu)
     .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')

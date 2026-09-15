@@ -23,7 +23,8 @@ const CONFIG = {
     SCHEDULE: 'Grafik',
     TIMELOG: 'Ewidencja',
     LEAVES: 'Wnioski',
-    AVAILABILITY: 'Dyspozycyjność'
+    AVAILABILITY: 'Dyspozycyjność',
+    DAYS_OFF: 'Dni wolne'
   }
 };
 

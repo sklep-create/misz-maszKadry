@@ -50,26 +50,151 @@ function getEasterSunday(year) {
  * wymaga pobierania z zewnątrz ani przechowywania/czyszczenia starych lat.
  */
 function getPolishHolidays(year) {
+  return getPolishHolidaysWithNames(year).map(function (h) { return h.date; });
+}
+
+/** Jak getPolishHolidays(), ale z nazwą święta - do wypełnienia arkusza "Dni wolne". */
+function getPolishHolidaysWithNames(year) {
   const easter = getEasterSunday(year);
   const easterMonday = new Date(easter.getFullYear(), easter.getMonth(), easter.getDate() + 1);
   const pentecostSunday = new Date(easter.getFullYear(), easter.getMonth(), easter.getDate() + 49); // Zielone Świątki
   const corpusChristi = new Date(easter.getFullYear(), easter.getMonth(), easter.getDate() + 60);
 
   return [
-    new Date(year, 0, 1),   // Nowy Rok
-    new Date(year, 0, 6),   // Trzech Króli
-    easter,                  // Wielkanoc
-    easterMonday,             // Poniedziałek Wielkanocny
-    new Date(year, 4, 1),   // Święto Pracy
-    new Date(year, 4, 3),   // Konstytucja 3 Maja
-    pentecostSunday,          // Zielone Świątki (Zesłanie Ducha Świętego)
-    corpusChristi,            // Boże Ciało
-    new Date(year, 7, 15),  // Wniebowzięcie NMP
-    new Date(year, 10, 1),  // Wszystkich Świętych
-    new Date(year, 10, 11), // Święto Niepodległości
-    new Date(year, 11, 25), // Boże Narodzenie (1. dzień)
-    new Date(year, 11, 26)  // Boże Narodzenie (2. dzień)
+    { date: new Date(year, 0, 1), name: 'Nowy Rok' },
+    { date: new Date(year, 0, 6), name: 'Trzech Króli' },
+    { date: easter, name: 'Wielkanoc' },
+    { date: easterMonday, name: 'Poniedziałek Wielkanocny' },
+    { date: new Date(year, 4, 1), name: 'Święto Pracy' },
+    { date: new Date(year, 4, 3), name: 'Konstytucja 3 Maja' },
+    { date: pentecostSunday, name: 'Zielone Świątki' },
+    { date: corpusChristi, name: 'Boże Ciało' },
+    { date: new Date(year, 7, 15), name: 'Wniebowzięcie NMP' },
+    { date: new Date(year, 10, 1), name: 'Wszystkich Świętych' },
+    { date: new Date(year, 10, 11), name: 'Święto Niepodległości' },
+    { date: new Date(year, 11, 25), name: 'Boże Narodzenie (1. dzień)' },
+    { date: new Date(year, 11, 26), name: 'Boże Narodzenie (2. dzień)' }
   ];
+}
+
+/**
+ * Odświeża arkusz "Dni wolne": generuje na nowo wiersze "Ustawowe" dla 3 lat
+ * (poprzedni, obecny, kolejny), zachowując nietknięte wszystkie wiersze
+ * "Dodatkowe" (ręcznie dopisane przez pracodawcę - np. lokalne święto albo
+ * dodatkowy dzień zamknięcia sklepu). Wywoływane co miesiąc przez trigger
+ * (installDniWolneRefreshTrigger) - okno lat samo "jedzie" do przodu z
+ * upływem czasu, bez ręcznej ingerencji.
+ */
+function refreshDniWolneSheet() {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
+  const data = sheet.getDataRange().getValues();
+
+  const customRows = [];
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i][2] || '').toString().trim() === 'Dodatkowe') {
+      customRows.push([formatSheetDate(data[i][0]), data[i][1], 'Dodatkowe']);
+    }
+  }
+
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 1, currentYear, currentYear + 1];
+  const statutoryRows = [];
+  years.forEach(function (year) {
+    getPolishHolidaysWithNames(year).forEach(function (h) {
+      statutoryRows.push([Utilities.formatDate(h.date, 'CET', 'yyyy-MM-dd'), h.name, 'Ustawowe']);
+    });
+  });
+
+  const allRows = statutoryRows.concat(customRows).sort(function (a, b) {
+    return a[0].localeCompare(b[0]);
+  });
+
+  sheet.clear();
+  const headers = ['Data', 'Nazwa', 'Rodzaj'];
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setValues([headers]);
+  headerRange.setBackground('#38A169')
+    .setFontColor('#FFFFFF')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.setRowHeight(1, 35);
+  sheet.setFrozenRows(1);
+
+  if (allRows.length > 0) {
+    sheet.getRange(2, 1, allRows.length, 3).setValues(allRows);
+  }
+
+  for (let col = 1; col <= 3; col++) {
+    sheet.autoResizeColumn(col);
+    if (sheet.getColumnWidth(col) < 120) sheet.setColumnWidth(col, 140);
+  }
+
+  const msg = '✅ Odświeżono "Dni wolne": ' + statutoryRows.length + ' ustawowych (lata ' + years.join(', ') + ') + ' + customRows.length + ' dodatkowych.';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI (np. trigger) - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/** Instaluje comiesięczny trigger odświeżający okno lat w "Dni wolne". Uruchom RAZ z menu. */
+function installDniWolneRefreshTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'refreshDniWolneSheet') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('refreshDniWolneSheet')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(4)
+    .create();
+
+  const msg = '✅ Zainstalowano comiesięczne odświeżanie "Dni wolne" (1. dnia miesiąca, ok. 4:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
+ * Zbiór dni wolnych od pracy (ustawowe + dodatkowe z arkusza "Dni wolne") w
+ * postaci {"yyyy-MM-dd": nazwa}, dla lat obejmujących [startDate, endDate].
+ * Jeśli arkusz nie ma jeszcze danych dla któregoś z tych lat (np. nikt nie
+ * uruchomił jeszcze refreshDniWolneSheet), dolicza ustawowe święta tego roku
+ * wprost z obliczenia - awaryjnie, żeby Grafik nigdy ich nie zignorował.
+ */
+function getCompanyDaysOffSet(startDate, endDate) {
+  const set = {};
+  const years = new Set([startDate.getFullYear(), endDate.getFullYear()]);
+  const coveredYears = new Set();
+
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
+  if (sheet) {
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      const dateStr = formatSheetDate(data[i][0]);
+      if (!dateStr) continue;
+      set[dateStr] = data[i][1] || 'Dzień wolny';
+      coveredYears.add(Number(dateStr.slice(0, 4)));
+    }
+  }
+
+  years.forEach(function (year) {
+    if (coveredYears.has(year)) return; // ten rok już jest w arkuszu
+    getPolishHolidaysWithNames(year).forEach(function (h) {
+      set[Utilities.formatDate(h.date, 'CET', 'yyyy-MM-dd')] = h.name;
+    });
+  });
+
+  return set;
 }
 
 /**

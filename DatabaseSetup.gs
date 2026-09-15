@@ -133,6 +133,16 @@ function getDatabaseSchema() {
         ['DYSP-001', 'EMP-001', '2026-10', '5,12,19,26', '2026-09-01'],
         ['DYSP-002', 'EMP-002', '2026-10', '3,10,17,24,31', '2026-09-01']
       ]
+    },
+    'Dni wolne': {
+      color: '#38A169', // Zielony
+      // Wiersze "Ustawowe" są generowane automatycznie dla 3 lat (poprzedni,
+      // obecny, kolejny) i nadpisywane przy każdym odświeżeniu - nie edytuj
+      // ich ręcznie. Wiersze "Dodatkowe" dopisujesz sam (np. lokalne święto,
+      // dodatkowy dzień zamknięcia sklepu) - te NIE są nigdy kasowane
+      // automatycznie. Patrz refreshDniWolneSheet() w AvailabilityService.gs.
+      headers: ['Data', 'Nazwa', 'Rodzaj'], // Rodzaj: Ustawowe / Dodatkowe
+      initialData: []
     }
   };
 }

@@ -68,20 +68,6 @@ function parseWorkingHoursRange(rangeStr) {
   return { start: _parseHourToken(parts[0]), stop: _parseHourToken(parts[1]) };
 }
 
-/** Zbiór dat świąt ("yyyy-MM-dd" -> true) obejmujący lata [startDate, endDate]. */
-function _getPolishHolidaySet(startDate, endDate) {
-  const years = new Set([startDate.getFullYear(), endDate.getFullYear()]);
-  const set = {};
-
-  years.forEach(function (year) {
-    getPolishHolidays(year).forEach(function (h) {
-      set[Utilities.formatDate(h, 'CET', 'yyyy-MM-dd')] = true;
-    });
-  });
-
-  return set;
-}
-
 /** Lista pracowników z ID_Pracownika, ChatID i imieniem/nazwiskiem. */
 function _getAllEmployeesWithChat() {
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.EMPLOYEES);
@@ -123,7 +109,7 @@ function generateGrafikForPeriod(startDate, endDate) {
     if (d >= startStr && d <= endStr) sheet.deleteRow(i + 1);
   }
 
-  const holidaySet = _getPolishHolidaySet(startDate, endDate);
+  const holidaySet = getCompanyDaysOffSet(startDate, endDate); // ustawowe + dodatkowe z arkusza "Dni wolne"
   const newRows = [];
   const uncoveredDays = [];
   const availabilityCache = {}; // "employeeId|YYYY-MM" -> [dni wolne]
