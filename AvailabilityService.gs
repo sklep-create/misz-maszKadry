@@ -139,24 +139,32 @@ function isMonthSelectable(monthValue) {
 function getOrCreateAvailabilitySheet() {
   const ss = getSpreadsheet();
   let sheet = ss.getSheetByName(CONFIG.SHEETS.AVAILABILITY);
-  if (sheet) return sheet;
 
-  sheet = ss.insertSheet(CONFIG.SHEETS.AVAILABILITY);
-  const headers = ["ID_Dyspozycji", "ID_Pracownika", "Miesiac", "Dni_Wolne", "Data_Aktualizacji"];
-  const headerRange = sheet.getRange(1, 1, 1, headers.length);
-  headerRange.setValues([headers]);
-  headerRange.setBackground("#6B46C1")
-    .setFontColor("#FFFFFF")
-    .setFontWeight("bold")
-    .setHorizontalAlignment("center")
-    .setVerticalAlignment("middle");
-  sheet.setRowHeight(1, 35);
-  sheet.setFrozenRows(1);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.SHEETS.AVAILABILITY);
+    const headers = ["ID_Dyspozycji", "ID_Pracownika", "Miesiac", "Dni_Wolne", "Data_Aktualizacji"];
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setBackground("#6B46C1")
+      .setFontColor("#FFFFFF")
+      .setFontWeight("bold")
+      .setHorizontalAlignment("center")
+      .setVerticalAlignment("middle");
+    sheet.setRowHeight(1, 35);
+    sheet.setFrozenRows(1);
 
-  for (let col = 1; col <= headers.length; col++) {
-    sheet.autoResizeColumn(col);
-    if (sheet.getColumnWidth(col) < 120) sheet.setColumnWidth(col, 140);
+    for (let col = 1; col <= headers.length; col++) {
+      sheet.autoResizeColumn(col);
+      if (sheet.getColumnWidth(col) < 120) sheet.setColumnWidth(col, 140);
+    }
   }
+
+  // Dni_Wolne (kolumna 4) musi być czystym tekstem - w polskiej lokalizacji
+  // arkusza przecinek jest separatorem dziesiętnym, więc bez formatu "@"
+  // Sheets przy zapisie próbuje sparsować listę dni (np. "5,12,19") jako
+  // liczbę i ją psuje. Ustawiane przy KAŻDYM wywołaniu (nie tylko przy
+  // tworzeniu arkusza), żeby naprawić też już istniejące zakładki.
+  sheet.getRange(1, 4, sheet.getMaxRows(), 1).setNumberFormat('@');
 
   return sheet;
 }

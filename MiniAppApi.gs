@@ -216,11 +216,13 @@ function getMiniAppRole(params) {
       return { ok: false, error: verification.error || "Invalid initData" };
     }
 
+    const logoUrl = getCompanyLogoUrl();
+
     if (isEmployerTelegramChat(verification.userId)) {
-      return { ok: true, role: "employer", employees: getEmployeesForEmployer() };
+      return { ok: true, role: "employer", employees: getEmployeesForEmployer(), logoUrl: logoUrl };
     }
 
-    return { ok: true, role: "employee" };
+    return { ok: true, role: "employee", logoUrl: logoUrl };
   } catch (err) {
     Logger.log("Błąd getMiniAppRole: " + err.toString());
     return { ok: false, error: "Wystąpił błąd podczas weryfikacji roli." };
@@ -249,7 +251,11 @@ function getPendingAttendance(params) {
       return { ok: false, error: "Wybierz pracownika." };
     }
 
-    return { ok: true, pending: getPendingAttendanceForEmployee(employeeId) };
+    return {
+      ok: true,
+      pending: getPendingAttendanceForEmployee(employeeId),
+      canHaveOvertime: canEmployeeHaveOvertime(employeeId)
+    };
   } catch (err) {
     Logger.log("Błąd getPendingAttendance: " + err.toString());
     return { ok: false, error: "Wystąpił błąd podczas pobierania godzin." };

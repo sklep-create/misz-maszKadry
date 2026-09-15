@@ -8,7 +8,7 @@ function doGet(e) {
   let responseData = {};
 
   if (page === "miniapp") {
-    return HtmlService.createHtmlOutputFromFile("MiniApp")
+    return HtmlService.createTemplateFromFile("MiniApp").evaluate()
       .setTitle("Panel Pracownika")
       .addMetaTag("viewport", "width=device-width, initial-scale=1");
   }
@@ -39,6 +39,15 @@ function doGet(e) {
 
   return ContentService.createTextOutput(JSON.stringify(responseData))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Wstrzykuje zawartość innego pliku HTML (np. Styles.html) do szablonu -
+ * używane w MiniApp.html jako `<?!= include('Styles'); ?>`, żeby Panel
+ * Pracownika i Panel Pracodawcy współdzieliły jeden plik CSS.
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 function getSheetDataAsJson(sheetName) {

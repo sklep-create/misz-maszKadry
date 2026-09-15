@@ -13,22 +13,24 @@ function getDatabaseSchema() {
     'Ustawienia': {
       color: '#4A5568', // Ciemnoszary
       // Układ kolumnowy: nagłówek = nazwa ustawienia, wartości pod spodem.
-      // NAZWA_FIRMY/logo/normy/miesiąc/webhook mają jedną wartość (wiersz 2).
-      // PRACODAWCY_TELEGRAM_IDS i dni/godziny pracy mają po jednej wartości
-      // na wiersz (rosnąco w dół), niezależnie od pozostałych kolumn.
+      // NAZWA_FIRMY/logo/normy/miesiąc/webhook/NADGODZINY mają jedną wartość
+      // (wiersz 2). PRACODAWCY_TELEGRAM_IDS i dni/godziny pracy mają po
+      // jednej wartości na wiersz (rosnąco w dół), niezależnie od
+      // pozostałych kolumn.
       headers: [
         'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP',
         'MIESIAC_GRAFIKU', 'WEBHOOK_URL', 'PRACODAWCY_TELEGRAM_IDS',
-        'dni pracy', 'godziny pracy'
+        'dni pracy', 'godziny pracy',
+        'NADGODZINY' // TAK/NIE - globalna zgoda firmy na nadgodziny (patrz isOvertimeAllowed() w Config.gs). OzN nigdy nie ma nadgodzin, niezależnie od tej wartości.
       ],
       initialData: [
-        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00'],
-        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00'],
-        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00'],
-        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00'],
-        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00'],
-        ['', '', '', '', '', '', '', 'Sobota', ''],
-        ['', '', '', '', '', '', '', 'Niedziela', '']
+        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE'],
+        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', ''],
+        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', ''],
+        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', ''],
+        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', ''],
+        ['', '', '', '', '', '', '', 'Sobota', '', ''],
+        ['', '', '', '', '', '', '', 'Niedziela', '', '']
       ]
     },
     'Pracownicy': {
@@ -44,7 +46,7 @@ function getDatabaseSchema() {
         'Staz_Pracy_Lata',    // Łączny staż pracy z edukacją
         'Licz_błędy',         // Licznik prób PIN
         'PIN',                // Jednorazowy PIN rejestracyjny
-        'Roczny_Limit_Urlopu' // 20, 26, 30 (+10 OzN)
+        'Suma_Urlopów'        // 20, 26, 30 (+10 OzN)
       ],
       initialData: [
         ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
@@ -62,7 +64,12 @@ function getDatabaseSchema() {
         'Planowany_Stop',    // HH:mm
         'Typ_Dnia'           // Praca / Wolne / Urlop / Chorobowe
       ],
-      initialData: []
+      initialData: [
+        ['GRF-001', 'EMP-001', '2026-09-14', '08:00', '16:00', 'Praca'],
+        ['GRF-002', 'EMP-002', '2026-09-14', '07:00', '14:00', 'Praca'],
+        ['GRF-003', 'EMP-003', '2026-09-14', '', '', 'Wolne'],
+        ['GRF-004', 'EMP-001', '2026-09-15', '08:00', '16:00', 'Praca']
+      ]
     },
     'Ewidencja': {
       color: '#2F855A', // Zielony
@@ -103,12 +110,25 @@ function getDatabaseSchema() {
         'Plik_GDrive_URL',   // Link do skanu/orzeczenia na Dysku Google
         'Uwagi'
       ],
-      initialData: []
+      initialData: [
+        ['WN-001', 'EMP-001', 'Urlop Wypoczynkowy', '2026-10-05', '2026-10-09', 'Oczekuje', '', ''],
+        ['WN-002', 'EMP-002', 'Urlop OzN', '2026-09-20', '2026-09-20', 'Zatwierdzony', '', 'Turnus rehabilitacyjny'],
+        ['WN-003', 'EMP-003', 'e-ZLA', '2026-09-10', '2026-09-12', 'Zatwierdzony', '', '']
+      ]
     },
     'Dyspozycyjność': {
       color: '#6B46C1', // Fioletowy
       headers: ['ID_Dyspozycji', 'ID_Pracownika', 'Miesiac', 'Dni_Wolne', 'Data_Aktualizacji'],
-      initialData: []
+      // Dni_Wolne (kolumna 4) to lista dni po przecinku (np. "5,12,19") -
+      // musi zostać zapisana jako czysty tekst (patrz textColumns w
+      // buildSheetFromSchema), inaczej Arkusze przy polskiej lokalizacji
+      // (przecinek = separator dziesiętny) próbują to sparsować jako liczbę
+      // i psują wartość (np. "20,5,6,7" -> "2005,6,7").
+      textColumns: [4],
+      initialData: [
+        ['DYSP-001', 'EMP-001', '2026-10', '5,12,19,26', '2026-09-01'],
+        ['DYSP-002', 'EMP-002', '2026-10', '3,10,17,24,31', '2026-09-01']
+      ]
     }
   };
 }
@@ -140,7 +160,16 @@ function buildSheetFromSchema(ss, sheetName, config) {
              .setHorizontalAlignment('center')
              .setVerticalAlignment('middle');
 
-  // 2. Estetyka i dopasowanie kolumn
+  // 2. Kolumny, które muszą być czystym tekstem (np. lista dni po przecinku) -
+  // ustawione PRZED wpisaniem jakichkolwiek danych, żeby Arkusze nie próbowały
+  // ich sparsować jako liczbę/datę wg lokalizacji.
+  if (config.textColumns && config.textColumns.length) {
+    config.textColumns.forEach(function (colIndex) {
+      sheet.getRange(1, colIndex, sheet.getMaxRows(), 1).setNumberFormat('@');
+    });
+  }
+
+  // 3. Estetyka i dopasowanie kolumn
   sheet.setRowHeight(1, 35); // Wyższy wiersz nagłówka
   sheet.setFrozenRows(1);    // Zamrożenie wiersza nagłówkowego
 

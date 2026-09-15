@@ -97,6 +97,40 @@ function getSettingValue(headerName) {
   return sheet.getRange(2, col).getValue();
 }
 
+/**
+ * URL logo firmy do wyświetlenia w Mini App: jeśli w Ustawienia!logo jest
+ * ręcznie wklejony link, ma pierwszeństwo; w przeciwnym razie automatycznie
+ * pobierane jest zdjęcie profilowe konta Google, na którym działa Web App
+ * (executeAs: USER_DEPLOYING, czyli konto wdrażające - sklep@misz-masz.cc).
+ */
+function getCompanyLogoUrl() {
+  const manual = (getSettingValue('logo') || '').toString().trim();
+  return manual || getGoogleAccountPhotoUrl();
+}
+
+/**
+ * Zdjęcie profilowe konta Google (People API), z cache na 1h - żeby nie
+ * odpytywać People API przy każdym otwarciu Mini App.
+ */
+function getGoogleAccountPhotoUrl() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('GOOGLE_ACCOUNT_PHOTO_URL');
+  if (cached !== null) return cached; // pusty string też jest poprawnym, zcache'owanym wynikiem
+
+  let url = '';
+  try {
+    const person = People.People.get('people/me', { personFields: 'photos' });
+    const photos = person.photos || [];
+    const primary = photos.find(function (p) { return p.metadata && p.metadata.primary; }) || photos[0];
+    url = primary ? primary.url : '';
+  } catch (err) {
+    Logger.log('Błąd getGoogleAccountPhotoUrl: ' + err.toString());
+  }
+
+  cache.put('GOOGLE_ACCOUNT_PHOTO_URL', url, 3600);
+  return url;
+}
+
 /** Dobowa norma godzin dla pracownika UoP (kolumna NORMA_ETAT_UOP), domyślnie 8. */
 function getNormaEtatUop() {
   const value = Number(getSettingValue('NORMA_ETAT_UOP'));
@@ -107,6 +141,30 @@ function getNormaEtatUop() {
 function getNormaOznUop() {
   const value = Number(getSettingValue('NORMA_OZN_UOP'));
   return value > 0 ? value : 7;
+}
+
+/**
+ * Czy w firmie w ogóle dopuszcza się nadgodziny (kolumna NADGODZINY w
+ * Ustawienia, TAK/NIE). Domyślnie NIE (bezpieczny wariant), dopóki
+ * pracodawca jawnie nie ustawi TAK.
+ */
+function isOvertimeAllowed() {
+  return (getSettingValue('NADGODZINY') || '').toString().trim().toUpperCase() === 'TAK';
+}
+
+/**
+ * Czy KONKRETNY pracownik może mieć nadgodziny: wymaga zgody firmowej
+ * (isOvertimeAllowed) ORAZ braku stopnia OzN - pracownicy z orzeczeniem o
+ * niepełnosprawności nigdy nie mają nadgodzin, niezależnie od ustawienia firmy.
+ */
+function canEmployeeHaveOvertime(employeeId) {
+  if (!isOvertimeAllowed()) return false;
+
+  const employee = getEmployeeById(employeeId);
+  const stopienOzn = (employee && employee.stopienOzn || '').toString().trim();
+  const isOzn = stopienOzn !== '' && stopienOzn !== 'Brak';
+
+  return !isOzn;
 }
 
 /**

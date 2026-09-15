@@ -91,6 +91,13 @@ function approveAttendanceDay(logId, employeeId, nadgodziny, przepracowane) {
   if (normalized === "NIE") {
     finalHours = getStandardHoursForEmployee(employeeId);
   } else {
+    if (!canEmployeeHaveOvertime(employeeId)) {
+      return {
+        ok: false,
+        error: "Ten pracownik nie może mieć nadgodzin (firma ma wyłączone nadgodziny w Ustawieniach albo pracownik ma stopień OzN)."
+      };
+    }
+
     finalHours = (przepracowane || "").toString().trim();
     if (!/^\d{1,2}:\d{2}$/.test(finalHours)) {
       return { ok: false, error: "Podaj przepracowane godziny w formacie H:mm, np. 7:45." };

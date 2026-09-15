@@ -30,7 +30,7 @@
  * podmienić tylko tę stałą i ponownie wdrożyć Worker — nic więcej.
  */
 
-const GAS_EXEC_URL = "https://script.google.com/macros/s/AKfycbzx1KPVBE9HrxP1MUsOzXbe9FY5ezgExrveX5lfjfmVLIobLxs8NFrCyziY0YP8w3_8ug/exec";
+const GAS_EXEC_URL = "https://script.google.com/macros/s/AKfycbyjmXkemAgKBPI2sHzqCDg32dpS8bmHwDZHk_EBXjJxPnUJ6R127-keH3uVSpz1f4gV/exec";
 
 export default {
   async fetch(request) {
