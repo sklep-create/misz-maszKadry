@@ -65,8 +65,11 @@ function getTelegramBotPhotoDataUri() {
         const fileUrl = 'https://api.telegram.org/file/bot' + _botTokenOrThrow() + '/' + fileInfo.result.file_path;
         const response = UrlFetchApp.fetch(fileUrl, { muteHttpExceptions: true });
         if (response.getResponseCode() === 200) {
-          const blob = response.getBlob();
-          dataUri = 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes());
+          // Telegram zwraca pliki zdjęć profilowych z Content-Type
+          // "application/octet-stream" (nie "image/jpeg"), mimo że to zawsze
+          // JPEG - trzeba wymusić poprawny typ, inaczej <img> tego nie wyrenderuje.
+          const blob = response.getBlob().setContentType('image/jpeg');
+          dataUri = 'data:image/jpeg;base64,' + Utilities.base64Encode(blob.getBytes());
         }
       }
     }
