@@ -100,6 +100,13 @@ function sprawdzWszystkieUprawnienia() {
     results.push('❌ Cache: ' + err.toString());
   }
 
+  try {
+    DriveApp.getRootFolder().getName();
+    results.push('✅ Dysk Google (drive)');
+  } catch (err) {
+    results.push('❌ Dysk Google: ' + err.toString());
+  }
+
   const summary = results.join('\n');
   Logger.log(summary);
   try {
