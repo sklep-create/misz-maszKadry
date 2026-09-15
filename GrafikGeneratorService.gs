@@ -68,6 +68,20 @@ function parseWorkingHoursRange(rangeStr) {
   return { start: _parseHourToken(parts[0]), stop: _parseHourToken(parts[1]) };
 }
 
+/** Zbiór dat świąt ("yyyy-MM-dd" -> true) obejmujący lata [startDate, endDate]. */
+function _getPolishHolidaySet(startDate, endDate) {
+  const years = new Set([startDate.getFullYear(), endDate.getFullYear()]);
+  const set = {};
+
+  years.forEach(function (year) {
+    getPolishHolidays(year).forEach(function (h) {
+      set[Utilities.formatDate(h, 'CET', 'yyyy-MM-dd')] = true;
+    });
+  });
+
+  return set;
+}
+
 /** Lista pracowników z ID_Pracownika, ChatID i imieniem/nazwiskiem. */
 function _getAllEmployeesWithChat() {
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.EMPLOYEES);
@@ -109,6 +123,7 @@ function generateGrafikForPeriod(startDate, endDate) {
     if (d >= startStr && d <= endStr) sheet.deleteRow(i + 1);
   }
 
+  const holidaySet = _getPolishHolidaySet(startDate, endDate);
   const newRows = [];
   const uncoveredDays = [];
   const availabilityCache = {}; // "employeeId|YYYY-MM" -> [dni wolne]
@@ -116,7 +131,8 @@ function generateGrafikForPeriod(startDate, endDate) {
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr = Utilities.formatDate(d, 'CET', 'yyyy-MM-dd');
     const dayName = GRAFIK_DAY_NAMES[d.getDay()];
-    const parsedHours = parseWorkingHoursRange(weeklyHours[dayName]);
+    const isHoliday = !!holidaySet[dateStr];
+    const parsedHours = isHoliday ? null : parseWorkingHoursRange(weeklyHours[dayName]);
     let workingCount = 0;
 
     employees.forEach(function (emp) {

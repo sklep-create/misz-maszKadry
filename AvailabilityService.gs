@@ -43,10 +43,16 @@ function getEasterSunday(year) {
   return new Date(year, month - 1, day);
 }
 
-/** Ustawowo wolne dni w Polsce dla danego roku (w tym ruchome - Wielkanoc, Boże Ciało). */
+/**
+ * Ustawowo wolne dni w Polsce dla danego roku (13 świąt wg ustawy z 1951 r.
+ * o dniach wolnych od pracy, w tym ruchome liczone od Wielkanocy). Obliczane
+ * matematycznie dla DOWOLNEGO roku (przeszłego, obecnego, przyszłego) - nie
+ * wymaga pobierania z zewnątrz ani przechowywania/czyszczenia starych lat.
+ */
 function getPolishHolidays(year) {
   const easter = getEasterSunday(year);
   const easterMonday = new Date(easter.getFullYear(), easter.getMonth(), easter.getDate() + 1);
+  const pentecostSunday = new Date(easter.getFullYear(), easter.getMonth(), easter.getDate() + 49); // Zielone Świątki
   const corpusChristi = new Date(easter.getFullYear(), easter.getMonth(), easter.getDate() + 60);
 
   return [
@@ -56,6 +62,7 @@ function getPolishHolidays(year) {
     easterMonday,             // Poniedziałek Wielkanocny
     new Date(year, 4, 1),   // Święto Pracy
     new Date(year, 4, 3),   // Konstytucja 3 Maja
+    pentecostSunday,          // Zielone Świątki (Zesłanie Ducha Świętego)
     corpusChristi,            // Boże Ciało
     new Date(year, 7, 15),  // Wniebowzięcie NMP
     new Date(year, 10, 1),  // Wszystkich Świętych
