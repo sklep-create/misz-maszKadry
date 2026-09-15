@@ -70,10 +70,10 @@ function migrationSetWebhookUrls() {
 
 /**
  * Uruchom RAZ z edytora, żeby przejść przez ekran zgody obejmujący WSZYSTKIE
- * uprawnienia naraz (Arkusze, zewnętrzne żądania, People API, cache) - po
- * zmianach w oauthScopes stara zgoda się unieważnia i trzeba ją odnowić.
- * Sama w sobie NIE naprawia autoryzacji wdrożenia web app (to osobna zgoda) -
- * służy tylko do wywołania pełnego ekranu "Zezwól" w jednym miejscu.
+ * uprawnienia naraz (Arkusze, zewnętrzne żądania, cache) - po zmianach w
+ * oauthScopes stara zgoda się unieważnia i trzeba ją odnowić. Sama w sobie
+ * NIE naprawia autoryzacji wdrożenia web app (to osobna zgoda) - służy
+ * tylko do wywołania pełnego ekranu "Zezwól" w jednym miejscu.
  */
 function authorizeAllScopes() {
   const results = [];
@@ -90,13 +90,6 @@ function authorizeAllScopes() {
     results.push('✅ Zewnętrzne żądania (script.external_request)');
   } catch (err) {
     results.push('❌ Zewnętrzne żądania: ' + err.toString());
-  }
-
-  try {
-    People.People.get('people/me', { personFields: 'photos' });
-    results.push('✅ People API (userinfo.profile)');
-  } catch (err) {
-    results.push('❌ People API: ' + err.toString());
   }
 
   try {
@@ -117,21 +110,22 @@ function authorizeAllScopes() {
 }
 
 /**
- * Pokazuje surową odpowiedź People API dla zdjęć profilowych (people/me) -
- * do diagnozy, czemu logo w Mini App się nie pokazuje (np. konto może po
- * prostu nie mieć ustawionego zdjęcia, albo jest ukryte politykami Workspace).
- * Czyści też cache logo, na wypadek gdyby wcześniej zapisał się pusty wynik.
+ * Pokazuje surowe dane zdjęcia profilowego bota Telegram (getChat) - do
+ * diagnozy, czemu logo w Mini App się nie pokazuje (np. bot może po prostu
+ * nie mieć ustawionego zdjęcia - BotFather → /setuserpic). Czyści też cache
+ * logo, na wypadek gdyby wcześniej zapisał się pusty wynik.
  */
-function debugGoogleAccountPhoto() {
-  CacheService.getScriptCache().remove('GOOGLE_ACCOUNT_PHOTO_URL');
+function debugTelegramBotPhoto() {
+  CacheService.getScriptCache().remove('TELEGRAM_BOT_PHOTO_DATAURI');
 
   try {
-    const person = People.People.get('people/me', { personFields: 'photos' });
-    Logger.log('Surowa odpowiedź People API:\n' + JSON.stringify(person, null, 2));
+    const me = _botApi('getMe');
+    const chat = _botApi('getChat', { chat_id: me.result.id });
+    Logger.log('getChat (bot):\n' + JSON.stringify(chat, null, 2));
   } catch (err) {
-    Logger.log('❌ Błąd People API: ' + err.toString());
+    Logger.log('❌ Błąd Telegram Bot API: ' + err.toString());
   }
 
-  const freshUrl = getGoogleAccountPhotoUrl();
-  Logger.log('getGoogleAccountPhotoUrl() zwraca: "' + freshUrl + '"');
+  const freshUri = getTelegramBotPhotoDataUri();
+  Logger.log('getTelegramBotPhotoDataUri() zwraca ' + freshUri.length + ' znaków' + (freshUri ? (' (zaczyna się od: ' + freshUri.slice(0, 40) + '...)') : ' (puste - brak zdjęcia bota)'));
 }

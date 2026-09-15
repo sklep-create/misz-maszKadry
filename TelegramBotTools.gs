@@ -41,6 +41,44 @@ function _botApi(method, params) {
 }
 
 /**
+ * Zdjęcie profilowe bota Telegram jako "data:" URI (base64) do wyświetlenia
+ * w Mini App - pobierane i kodowane SERWEROWO (token bota nigdy nie trafia
+ * do klienta), z cache na 1h. Zwraca '' jeśli bot nie ma ustawionego zdjęcia
+ * (BotFather → /setuserpic) albo coś pójdzie nie tak.
+ */
+function getTelegramBotPhotoDataUri() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('TELEGRAM_BOT_PHOTO_DATAURI');
+  if (cached !== null) return cached; // pusty string też jest poprawnym, zcache'owanym wynikiem
+
+  let dataUri = '';
+  try {
+    const me = _botApi('getMe');
+    if (!me.ok) throw new Error('getMe: ' + JSON.stringify(me));
+
+    const chat = _botApi('getChat', { chat_id: me.result.id });
+    const photo = chat.ok && chat.result.photo;
+
+    if (photo) {
+      const fileInfo = _botApi('getFile', { file_id: photo.small_file_id });
+      if (fileInfo.ok) {
+        const fileUrl = 'https://api.telegram.org/file/bot' + _botTokenOrThrow() + '/' + fileInfo.result.file_path;
+        const response = UrlFetchApp.fetch(fileUrl, { muteHttpExceptions: true });
+        if (response.getResponseCode() === 200) {
+          const blob = response.getBlob();
+          dataUri = 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes());
+        }
+      }
+    }
+  } catch (err) {
+    Logger.log('Błąd getTelegramBotPhotoDataUri: ' + err.toString());
+  }
+
+  cache.put('TELEGRAM_BOT_PHOTO_DATAURI', dataUri, 3600);
+  return dataUri;
+}
+
+/**
  * Zgłasza wynik funkcji: zapisuje go do logów i pokazuje w okienku
  * z przyciskiem kopiowania, o ile wykonywana jest w kontekście z
  * dostępnym UI (arka Google). Przy silent=true pomija okienko

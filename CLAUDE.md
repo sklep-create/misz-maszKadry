@@ -41,20 +41,17 @@ bo to skrypt standalone, nie przypięty) — patrz `migrationInitialSetup()` i
 `migrationSetWebhookUrls()` w `Diagnostics.gs`. Stary projekt jest martwy,
 zostawiony bez zmian.
 
-## Google People API (logo w Mini App) - ograniczenie clasp
+## Logo w Mini App
 
-`clasp push` **zawsze usuwa** deklarację `enabledAdvancedServices` (People API)
-z manifestu na serwerze, nawet jeśli `appsscript.json` w repo ją zawiera —
-próba wgrania jej wprost kończy się błędem `Service not found: people v1`. To
-ograniczenie clasp, nie Google (przez UI edytora działa bez problemu).
-
-**Po KAŻDYM `clasp push` do tego projektu** trzeba ręcznie dodać usługę w
-edytorze Apps Script: **Usługi → + → Google People API (wersja v1,
-identyfikator `People`) → Dodaj**. Bez tego logo w Mini App (i funkcje
-`getGoogleAccountPhotoUrl`/`debugGoogleAccountPhoto`) rzucają
-`ReferenceError: People is not defined`. `appsscript.json` w repo celowo
-zawiera pełną deklarację (dokumentuje docelowy stan), mimo że push i tak ją
-zignoruje/usunie.
+Logo pochodzi z Ustawienia!logo (ręczny link, ma pierwszeństwo) albo
+automatycznie ze zdjęcia profilowego BOTA Telegram (`getTelegramBotPhotoDataUri`
+w TelegramBotTools.gs - pobrane i zakodowane base64 po stronie serwera, token
+bota nigdy nie trafia do klienta). Świadomie NIE używamy do tego Google People
+API: `clasp push` zawsze usuwał deklarację `enabledAdvancedServices` z
+manifestu na serwerze (błąd `Service not found: people v1` przy próbie wgrania
+jej wprost - ograniczenie samego clasp), co bez końca psuło logo po każdym
+pushu. Telegram Bot API nie ma tego problemu i nie wymaga żadnych dodatkowych
+uprawnień Google.
 
 ## Zasady kodu:
 - Kod serwerowy pisz w `.js` (GAS traktuje je jak `.gs`).

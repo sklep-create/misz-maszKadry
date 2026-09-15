@@ -1,13 +1,6 @@
 {
   "timeZone": "Europe/Warsaw",
   "dependencies": {
-    "enabledAdvancedServices": [
-      {
-        "userSymbol": "People",
-        "serviceId": "people",
-        "version": "v1"
-      }
-    ]
   },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
@@ -20,7 +13,6 @@
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/business.manage",
     "https://www.googleapis.com/auth/script.container.ui",
-    "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/script.scriptapp"
   ]
 }

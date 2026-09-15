@@ -100,35 +100,12 @@ function getSettingValue(headerName) {
 /**
  * URL logo firmy do wyświetlenia w Mini App: jeśli w Ustawienia!logo jest
  * ręcznie wklejony link, ma pierwszeństwo; w przeciwnym razie automatycznie
- * pobierane jest zdjęcie profilowe konta Google, na którym działa Web App
- * (executeAs: USER_DEPLOYING, czyli konto wdrażające - sklep@misz-masz.cc).
+ * pobierane jest zdjęcie profilowe bota Telegram (bez dodatkowych uprawnień
+ * Google - patrz getTelegramBotPhotoDataUri w TelegramBotTools.gs).
  */
 function getCompanyLogoUrl() {
   const manual = (getSettingValue('logo') || '').toString().trim();
-  return manual || getGoogleAccountPhotoUrl();
-}
-
-/**
- * Zdjęcie profilowe konta Google (People API), z cache na 1h - żeby nie
- * odpytywać People API przy każdym otwarciu Mini App.
- */
-function getGoogleAccountPhotoUrl() {
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get('GOOGLE_ACCOUNT_PHOTO_URL');
-  if (cached !== null) return cached; // pusty string też jest poprawnym, zcache'owanym wynikiem
-
-  let url = '';
-  try {
-    const person = People.People.get('people/me', { personFields: 'photos' });
-    const photos = person.photos || [];
-    const primary = photos.find(function (p) { return p.metadata && p.metadata.primary; }) || photos[0];
-    url = primary ? primary.url : '';
-  } catch (err) {
-    Logger.log('Błąd getGoogleAccountPhotoUrl: ' + err.toString());
-  }
-
-  cache.put('GOOGLE_ACCOUNT_PHOTO_URL', url, 3600);
-  return url;
+  return manual || getTelegramBotPhotoDataUri();
 }
 
 /** Dobowa norma godzin dla pracownika UoP (kolumna NORMA_ETAT_UOP), domyślnie 8. */
