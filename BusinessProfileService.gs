@@ -337,3 +337,55 @@ function pushDaysOffToGoogleBusinessProfile() {
     return _reportResult('❌ Błąd: ' + err.toString());
   }
 }
+
+/**
+ * Pobiera specialHours (zamknięte dni) z Google Wizytówki i dopisuje do
+ * arkusza "Dni wolne" jako "Dodatkowe" te, których tam jeszcze nie ma
+ * (dopasowanie po dacie - istniejące wiersze, także ręcznie nazwane, zostają
+ * bez zmian). Używa My Business Business Information API - zablokowane do
+ * czasu zwiększenia limitu przez Google, tak jak pushDaysOffToGoogleBusinessProfile.
+ */
+function pullDaysOffFromGoogleBusinessProfile() {
+  try {
+    const token = ScriptApp.getOAuthToken();
+    const locationId = getGoogleBusinessLocationId();
+
+    const response = UrlFetchApp.fetch(
+      'https://mybusinessbusinessinformation.googleapis.com/v1/' + locationId + '?readMask=specialHours',
+      { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true }
+    );
+    const data = JSON.parse(response.getContentText());
+
+    if (data.error) {
+      return _reportResult('❌ Błąd pobierania dni wolnych z Google Wizytówki:\n' + JSON.stringify(data.error));
+    }
+
+    const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.DAYS_OFF);
+    const existing = sheet.getDataRange().getValues();
+    const existingDates = {};
+    for (let i = 1; i < existing.length; i++) {
+      const dateStr = formatSheetDate(existing[i][0]);
+      if (dateStr) existingDates[dateStr] = true;
+    }
+
+    const periods = (data.specialHours && data.specialHours.specialHourPeriods) || [];
+    const newRows = [];
+    periods.forEach(function (period) {
+      if (!period.closed || !period.startDate) return;
+      const sd = period.startDate;
+      const dateStr = sd.year + '-' + ('0' + sd.month).slice(-2) + '-' + ('0' + sd.day).slice(-2);
+      if (existingDates[dateStr]) return; // już jest w arkuszu - nie dubluj
+
+      newRows.push([dateStr, 'Z Google Wizytówki', 'Dodatkowe']);
+      existingDates[dateStr] = true;
+    });
+
+    if (newRows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 3).setValues(newRows);
+    }
+
+    return _reportResult('✅ Pobrano z Google Wizytówki: dopisano ' + newRows.length + ' nowych dni wolnych do arkusza "Dni wolne" (' + periods.length + ' zamkniętych dni znalezionych na Wizytówce łącznie).');
+  } catch (err) {
+    return _reportResult('❌ Błąd: ' + err.toString());
+  }
+}
