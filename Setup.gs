@@ -30,19 +30,19 @@ function onOpen() {
   const businessProfileMenu = ui.createMenu('🏢 Google Wizytówka')
     .addItem('🔍 Znajdź lokalizację Google Wizytówki (My Business API)', 'listGoogleBusinessAccountsAndLocations')
     .addItem('⬇️ Pobierz godziny (publiczne Places API, działa od razu)', 'pullHoursFromPublicPlacesApi')
-    .addItem('⏰ Zainstaluj automatyczne pobieranie godzin (raz)', 'installAutoPullHoursDaily')
+    .addItem('⏰ Zainstaluj automatyczne pobieranie godzin (raz)', 'zainstalujAutomatycznePobieranieGodzin')
     .addSeparator()
     .addItem('⬇️ Pobierz godziny (My Business API, wymaga limitu Google)', 'pullHoursFromGoogleBusinessProfile')
     .addItem('⬆️ Wyślij godziny do Google Wizytówki (My Business API)', 'pushHoursToGoogleBusinessProfile');
 
   const grafikMenu = ui.createMenu('🗓️ Grafik')
-    .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'installAutoGenerateGrafikDaily')
+    .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'zainstalujAutomatyczneGenerowanieGrafiku')
     .addItem('🔁 Wygeneruj następny okres teraz (ręcznie/test)', 'generateGrafikNowForced')
     .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport');
 
   const daysOffMenu = ui.createMenu('📅 Dni wolne')
     .addItem('🔄 Odśwież listę dni wolnych (poprzedni/obecny/kolejny rok)', 'refreshDniWolneSheet')
-    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'installAutoRefreshDniWolneMonthly')
+    .addItem('⏰ Zainstaluj automatyczne odświeżanie (raz)', 'zainstalujAutomatyczneOdswiezanieDniWolnych')
     .addItem('⬇️ Pobierz dni wolne z Google Wizytówki', 'pullDaysOffFromGoogleBusinessProfile')
     .addItem('⬆️ Wyślij dni wolne do Google Wizytówki i strony', 'pushDaysOffToGoogleBusinessProfile');
 

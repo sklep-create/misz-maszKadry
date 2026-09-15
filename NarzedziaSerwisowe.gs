@@ -15,7 +15,7 @@
  *    tutaj musi być zainstalowany jawnie.
  * Uruchom RAZ z edytora (Uruchom ▶), potem odśwież arkusz w przeglądarce.
  */
-function migrationInitialSetup() {
+function podlaczArkuszIZainstalujMenu() {
   const spreadsheetId = '1SmbwZtQN6hdC6qlzUOZXH_oLRP0TH1Plh1RFMal-exs';
 
   PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', spreadsheetId);
@@ -52,7 +52,7 @@ function migrationInitialSetup() {
  * 🔐 Inicjalizuj sekretne dane (tam jest bezpieczne okienko do wpisania).
  * Uruchom RAZ z edytora (Uruchom ▶) - nie wymaga kontekstu UI arkusza.
  */
-function migrationSetWebhookUrls() {
+function ustawAdresyWebhookaPoMigracji() {
   const cloudflareWorkerUrl = 'https://telegram-gas-relay.sklep-dd2.workers.dev';
   const props = PropertiesService.getScriptProperties();
 
@@ -76,7 +76,7 @@ function migrationSetWebhookUrls() {
  * NIE naprawia autoryzacji wdrożenia web app (to osobna zgoda) - służy
  * tylko do wywołania pełnego ekranu "Zezwól" w jednym miejscu.
  */
-function authorizeAllScopes() {
+function sprawdzWszystkieUprawnienia() {
   const results = [];
 
   try {
@@ -116,7 +116,7 @@ function authorizeAllScopes() {
  * nie mieć ustawionego zdjęcia - BotFather → /setuserpic). Czyści też cache
  * logo, na wypadek gdyby wcześniej zapisał się pusty wynik.
  */
-function debugTelegramBotPhoto() {
+function sprawdzZdjecieProfiloweBota() {
   CacheService.getScriptCache().remove('TELEGRAM_BOT_PHOTO_DATAURI');
 
   try {
@@ -136,7 +136,7 @@ function debugTelegramBotPhoto() {
  * otwarcia z Google Wizytówki (publiczne Places API) do arkusza Ustawienia.
  * Uruchom RAZ z menu (⚙️ System Kadrowy → 🏢 Google Wizytówka).
  */
-function installAutoPullHoursDaily() {
+function zainstalujAutomatycznePobieranieGodzin() {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === 'pullHoursFromPublicPlacesApi') {
       ScriptApp.deleteTrigger(trigger);
@@ -164,7 +164,7 @@ function installAutoPullHoursDaily() {
  * (sprawdza codziennie czy to dokładnie 5 dni przed startem kolejnego okresu
  * i jeśli tak, generuje go). Uruchom RAZ z menu (⚙️ System Kadrowy → 🗓️ Grafik).
  */
-function installAutoGenerateGrafikDaily() {
+function zainstalujAutomatyczneGenerowanieGrafiku() {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === 'checkAndGenerateGrafikIfDue') {
       ScriptApp.deleteTrigger(trigger);
@@ -192,7 +192,7 @@ function installAutoGenerateGrafikDaily() {
  * rolowanego okna 3 lat (poprzedni/obecny/kolejny) w arkuszu "Dni wolne".
  * Uruchom RAZ z menu (⚙️ System Kadrowy → 📅 Dni wolne).
  */
-function installAutoRefreshDniWolneMonthly() {
+function zainstalujAutomatyczneOdswiezanieDniWolnych() {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === 'refreshDniWolneSheet') {
       ScriptApp.deleteTrigger(trigger);

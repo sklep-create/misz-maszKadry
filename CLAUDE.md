@@ -37,9 +37,17 @@ w koncie/organizacji. Rozwiązanie: przeniesiono cały kod do nowego, standalone
 projektu (scriptId `1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i`,
 `.clasp.json` już na niego wskazuje). Arkusz podpięty przez `SPREADSHEET_ID` w
 Properties Service + zainstalowany trigger `onOpen` (zamiast zwykłego triggera,
-bo to skrypt standalone, nie przypięty) — patrz `migrationInitialSetup()` i
-`migrationSetWebhookUrls()` w `Diagnostics.gs`. Stary projekt jest martwy,
-zostawiony bez zmian.
+bo to skrypt standalone, nie przypięty) — patrz `podlaczArkuszIZainstalujMenu()` i
+`ustawAdresyWebhookaPoMigracji()` w `NarzedziaSerwisowe.gs`. Stary projekt jest
+martwy, zostawiony bez zmian.
+
+## Nazewnictwo funkcji
+
+Cały kod (nazwy funkcji, zmiennych) jest po angielsku - **oprócz**
+`NarzedziaSerwisowe.gs`, gdzie funkcje mają celowo polskie nazwy
+(`sprawdzWszystkieUprawnienia`, `zainstalujAutomatyczneGenerowanieGrafiku`
+itd.) - to plik uruchamiany ręcznie z edytora, ma być zrozumiały od razu bez
+tłumaczenia.
 
 ## Logo w Mini App
 

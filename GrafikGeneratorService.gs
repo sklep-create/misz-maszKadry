@@ -158,7 +158,7 @@ function generateGrafikForPeriod(startDate, endDate) {
 
 /**
  * Wywoływane codziennie przez zainstalowany trigger czasowy
- * (installAutoGenerateGrafikDaily w MaintenanceTools.gs). Jeśli dziś jest dokładnie 5 dni przed
+ * (zainstalujAutomatyczneGenerowanieGrafiku w NarzedziaSerwisowe.gs). Jeśli dziś jest dokładnie 5 dni przed
  * startem następnego okresu - generuje go i wysyła powiadomienia Telegram
  * (pracodawcy zawsze, z ostrzeżeniem o dniach bez obsady jeśli są; każdemu
  * pracownikowi krótką informację że grafik jest gotowy).

@@ -82,7 +82,7 @@ function getPolishHolidaysWithNames(year) {
  * (poprzedni, obecny, kolejny), zachowując nietknięte wszystkie wiersze
  * "Dodatkowe" (ręcznie dopisane przez pracodawcę - np. lokalne święto albo
  * dodatkowy dzień zamknięcia sklepu). Wywoływane co miesiąc przez trigger
- * (installAutoRefreshDniWolneMonthly w MaintenanceTools.gs) - okno lat samo "jedzie" do przodu z
+ * (zainstalujAutomatyczneOdswiezanieDniWolnych w NarzedziaSerwisowe.gs) - okno lat samo "jedzie" do przodu z
  * upływem czasu, bez ręcznej ingerencji.
  */
 function refreshDniWolneSheet() {
