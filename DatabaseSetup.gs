@@ -142,7 +142,12 @@ function getDatabaseSchema() {
       // dodatkowy dzień zamknięcia sklepu) - te NIE są nigdy kasowane
       // automatycznie. Patrz refreshDniWolneSheet() w AvailabilityService.gs.
       headers: ['Data', 'Nazwa', 'Rodzaj'], // Rodzaj: Ustawowe / Dodatkowe
-      initialData: []
+      // Przykładowy wzór własnego ("Dodatkowe") dnia wolnego - podmień na
+      // realną datę/nazwę. Wiersze "Ustawowe" dopisze samo odświeżenie
+      // (⚙️ System Kadrowy → 📅 Dni wolne → 🔄 Odśwież listę dni wolnych).
+      initialData: [
+        ['2026-12-24', 'Wigilia (dodatkowy dzień wolny sklepu)', 'Dodatkowe']
+      ]
     }
   };
 }
