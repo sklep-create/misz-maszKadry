@@ -9,7 +9,9 @@
  * Dla każdego dnia okresu i każdego pracownika: jeśli to dzień roboczy wg
  * "dni pracy"/"godziny pracy" z Ustawienia I pracownik NIE zaznaczył go jako
  * wolny w Dyspozycyjności -> wpis "Praca" z domyślnymi godzinami firmy dla
- * tego dnia tygodnia; w przeciwnym razie "Wolne". Dyspozycyjność zostaje
+ * tego dnia tygodnia (skróconymi do NORMA_OZN_UOP godzin od tej samej
+ * godziny startu, jeśli pracownik ma orzeczony stopień OzN - patrz
+ * _applyOznHourLimit()); w przeciwnym razie "Wolne". Dyspozycyjność zostaje
  * miesięczna niezależnie od długości okresu grafiku - dla każdego dnia
  * sprawdzany jest właściwy miesiąc kalendarzowy tego dnia.
  */
@@ -68,7 +70,7 @@ function parseWorkingHoursRange(rangeStr) {
   return { start: _parseHourToken(parts[0]), stop: _parseHourToken(parts[1]) };
 }
 
-/** Lista pracowników z ID_Pracownika, ChatID i imieniem/nazwiskiem. */
+/** Lista pracowników z ID_Pracownika, ChatID, imieniem/nazwiskiem i statusem OzN. */
 function _getAllEmployeesWithChat() {
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
@@ -77,14 +79,39 @@ function _getAllEmployeesWithChat() {
   for (let i = 1; i < data.length; i++) {
     const employeeId = (data[i][0] || '').toString();
     if (!employeeId) continue;
+    const stopienOzn = (data[i][5] || '').toString().trim();
     employees.push({
       employeeId: employeeId,
       chatId: (data[i][1] || '').toString(),
-      fullName: data[i][2] || employeeId
+      fullName: data[i][2] || employeeId,
+      isOzn: stopienOzn !== '' && stopienOzn !== 'Brak'
     });
   }
 
   return employees;
+}
+
+/** Skraca zmianę do dobowej normy OzN (Ustawienia!NORMA_OZN_UOP, domyślnie 7h),
+ *  licząc od tej samej godziny startu - zgodnie z Art. 15 ustawy o rehabilitacji
+ *  zawodowej (7h/dzień, 35h/tydzień dla znacznego/umiarkowanego stopnia
+ *  niepełnosprawności). Nie wydłuża zmiany, jeśli firma ma tego dnia i tak
+ *  krótsze godziny niż norma OzN. */
+function _applyOznHourLimit(parsedHours, isOzn) {
+  if (!isOzn) return parsedHours;
+
+  const startMin = _timeToMinutes(parsedHours.start);
+  const naturalStopMin = _timeToMinutes(parsedHours.stop);
+  const oznStopMin = startMin + getNormaOznUop() * 60;
+  const stopMin = Math.min(naturalStopMin, oznStopMin);
+
+  return { start: parsedHours.start, stop: _minutesToHHMM(stopMin) };
+}
+
+/** Konwertuje minuty od północy na "HH:mm". */
+function _minutesToHHMM(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
 /**
@@ -134,9 +161,10 @@ function generateGrafikForPeriod(startDate, endDate) {
         }
 
         if (availabilityCache[cacheKey].indexOf(d.getDate()) === -1) {
+          const shift = _applyOznHourLimit(parsedHours, emp.isOzn);
           typDnia = 'Praca';
-          start = parsedHours.start;
-          stop = parsedHours.stop;
+          start = shift.start;
+          stop = shift.stop;
           workingCount++;
         }
       }
