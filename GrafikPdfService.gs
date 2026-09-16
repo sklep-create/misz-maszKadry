@@ -337,12 +337,12 @@ function generujGrafikZbiorczyPdf() {
   const file = folder.createFile(blob);
 
   Logger.log('✅ Wygenerowano PDF: "' + fileName + '" - ' + file.getUrl());
-  _pokazWynikGenerowaniaPdf(fileName, file.getUrl());
+  _pokazWynikGenerowaniaPdf(fileName, file.getUrl(), folder.getUrl());
   return '✅ Wygenerowano PDF: "' + fileName + '"';
 }
 
 /** Ładne okienko z wynikiem - klikalne przyciski zamiast zwykłego alertu tekstowego. */
-function _pokazWynikGenerowaniaPdf(fileName, pdfUrl) {
+function _pokazWynikGenerowaniaPdf(fileName, pdfUrl, folderUrl) {
   let grafikUrl = '';
   try {
     const ss = getSpreadsheet();
@@ -360,12 +360,14 @@ function _pokazWynikGenerowaniaPdf(fileName, pdfUrl) {
       a.btn { display: block; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-bottom: 10px; }
       a.btn-pdf { background: #38B2AC; color: #fff; }
       a.btn-grafik { background: #EDF2F7; color: #2D3748; }
+      a.btn-folder { background: #EDF2F7; color: #2D3748; }
     </style>
     <div class="icon">✅</div>
     <div class="filename">${fileName}</div>
     <a class="btn btn-pdf" href="${pdfUrl}" target="_blank">📄 Otwórz PDF</a>
     ${grafikUrl ? '<a class="btn btn-grafik" href="' + grafikUrl + '" target="_blank">📅 Przejdź do arkusza Grafik</a>' : ''}
-  `).setWidth(320).setHeight(220);
+    ${folderUrl ? '<a class="btn btn-folder" href="' + folderUrl + '" target="_blank">📁 Przejdź do Dysku</a>' : ''}
+  `).setWidth(320).setHeight(270);
 
   try {
     SpreadsheetApp.getUi().showModalDialog(html, '🖨️ Grafik zbiorczy gotowy');
