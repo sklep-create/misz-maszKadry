@@ -9,11 +9,17 @@
  * Dla każdego dnia okresu i każdego pracownika: jeśli to dzień roboczy wg
  * "dni pracy"/"godziny pracy" z Ustawienia I pracownik NIE zaznaczył go jako
  * wolny w Dyspozycyjności -> wpis "Praca" z domyślnymi godzinami firmy dla
- * tego dnia tygodnia (skróconymi do NORMA_OZN_UOP godzin od tej samej
- * godziny startu, jeśli pracownik ma orzeczony stopień OzN - patrz
- * _applyOznHourLimit()); w przeciwnym razie "Wolne". Dyspozycyjność zostaje
+ * tego dnia tygodnia; w przeciwnym razie "Wolne". Dyspozycyjność zostaje
  * miesięczna niezależnie od długości okresu grafiku - dla każdego dnia
  * sprawdzany jest właściwy miesiąc kalendarzowy tego dnia.
+ *
+ * Pracownicy z orzeczonym stopniem OzN mają DWA NIEZALEŻNE limity (Art. 15
+ * ustawy o rehabilitacji zawodowej: 7h/dzień ORAZ 35h/tydzień, konfigurowalne
+ * - patrz Ustawienia!NORMA_OZN_UOP/NORMA_OZN_TYGODNIOWA_UOP i per-pracownik
+ * Pracownicy!Norma_Dobowa_OzN/Norma_Tygodniowa_OzN): każda zmiana jest
+ * skracana do limitu dobowego (_applyOznHourLimit()), a licznik tygodniowy
+ * (zerowany w każdy poniedziałek) dodatkowo skraca lub całkiem pomija dzień
+ * (dodatkowy dzień wolny), jeśli tygodniowy limit zostałby przekroczony.
  */
 
 const GRAFIK_DAY_NAMES = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']; // index = Date.getDay()
@@ -85,7 +91,10 @@ function _getAllEmployeesWithChat() {
       chatId: (data[i][1] || '').toString(),
       fullName: data[i][2] || employeeId,
       isOzn: stopienOzn !== '' && stopienOzn !== 'Brak',
-      normaGodzinOzn: Number(data[i][11]) || null // nadpisanie per-pracownik (Pracownicy!Norma_Godzin_OzN); puste = użyj globalnego NORMA_OZN_UOP
+      // Nadpisania per-pracownik (Pracownicy!Norma_Dobowa_OzN / Norma_Tygodniowa_OzN);
+      // puste = użyj globalnych Ustawienia!NORMA_OZN_UOP / NORMA_OZN_TYGODNIOWA_UOP.
+      normaDobowaOzn: Number(data[i][11]) || null,
+      normaTygodniowaOzn: Number(data[i][12]) || null
     });
   }
 
@@ -93,16 +102,16 @@ function _getAllEmployeesWithChat() {
 }
 
 /** Skraca zmianę do dobowej normy OzN, licząc od tej samej godziny startu -
- *  zgodnie z Art. 15 ustawy o rehabilitacji zawodowej (7h/dzień, 35h/tydzień
- *  dla znacznego/umiarkowanego stopnia niepełnosprawności - przepisy mogą się
- *  zmienić, stąd liczba godzin jest konfigurowalna). Norma per pracownik
- *  (Pracownicy!Norma_Godzin_OzN) ma pierwszeństwo; jeśli pusta - używana jest
- *  globalna Ustawienia!NORMA_OZN_UOP (domyślnie 7h). Nie wydłuża zmiany,
- *  jeśli firma ma tego dnia i tak krótsze godziny niż norma OzN. */
-function _applyOznHourLimit(parsedHours, isOzn, normaGodzinOzn) {
+ *  zgodnie z Art. 15 ustawy o rehabilitacji zawodowej (7h/dzień - przepisy
+ *  mogą się zmienić, stąd liczba godzin jest konfigurowalna). Norma per
+ *  pracownik (Pracownicy!Norma_Dobowa_OzN) ma pierwszeństwo; jeśli pusta -
+ *  używana jest globalna Ustawienia!NORMA_OZN_UOP (domyślnie 7h). Nie
+ *  wydłuża zmiany, jeśli firma ma tego dnia i tak krótsze godziny niż norma
+ *  OzN. Limit TYGODNIOWY (35h) pilnowany jest OSOBNO w generateGrafikForPeriod(). */
+function _applyOznHourLimit(parsedHours, isOzn, normaDobowaOzn) {
   if (!isOzn) return parsedHours;
 
-  const norma = normaGodzinOzn > 0 ? normaGodzinOzn : getNormaOznUop();
+  const norma = normaDobowaOzn > 0 ? normaDobowaOzn : getNormaOznUop();
   const startMin = _timeToMinutes(parsedHours.start);
   const naturalStopMin = _timeToMinutes(parsedHours.stop);
   const oznStopMin = startMin + norma * 60;
@@ -144,6 +153,11 @@ function generateGrafikForPeriod(startDate, endDate) {
   const newRows = [];
   const uncoveredDays = [];
   const availabilityCache = {}; // "employeeId|YYYY-MM" -> [dni wolne]
+  // employeeId -> minuty pracy OzN wykorzystane w BIEŻĄCYM tygodniu (Pon-Nd);
+  // zerowane na każdy poniedziałek, żeby pilnować tygodniowego limitu 35h
+  // NIEZALEŻNIE od limitu dobowego (patrz _applyOznHourLimit()).
+  const oznWeeklyMinutesUsed = {};
+  employees.forEach(function (emp) { oznWeeklyMinutesUsed[emp.employeeId] = 0; });
 
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr = Utilities.formatDate(d, 'CET', 'yyyy-MM-dd');
@@ -151,6 +165,11 @@ function generateGrafikForPeriod(startDate, endDate) {
     const isHoliday = !!holidaySet[dateStr];
     const parsedHours = isHoliday ? null : parseWorkingHoursRange(weeklyHours[dayName]);
     let workingCount = 0;
+
+    // Poniedziałek = początek nowego tygodnia rozliczeniowego dla limitu OzN.
+    if (d.getDay() === 1) {
+      employees.forEach(function (emp) { oznWeeklyMinutesUsed[emp.employeeId] = 0; });
+    }
 
     employees.forEach(function (emp) {
       let typDnia = 'Wolne';
@@ -165,11 +184,32 @@ function generateGrafikForPeriod(startDate, endDate) {
         }
 
         if (availabilityCache[cacheKey].indexOf(d.getDate()) === -1) {
-          const shift = _applyOznHourLimit(parsedHours, emp.isOzn, emp.normaGodzinOzn);
-          typDnia = 'Praca';
-          start = shift.start;
-          stop = shift.stop;
-          workingCount++;
+          let shift = _applyOznHourLimit(parsedHours, emp.isOzn, emp.normaDobowaOzn);
+          let shiftMinutes = _timeToMinutes(shift.stop) - _timeToMinutes(shift.start);
+          let skipDay = false;
+
+          if (emp.isOzn) {
+            const weeklyCapMin = (emp.normaTygodniowaOzn > 0 ? emp.normaTygodniowaOzn : getNormaOznTygodniowa()) * 60;
+            const remainingMin = weeklyCapMin - oznWeeklyMinutesUsed[emp.employeeId];
+
+            if (remainingMin <= 0) {
+              skipDay = true; // tygodniowy limit OzN już wyczerpany - dodatkowy dzień wolny
+            } else if (shiftMinutes > remainingMin) {
+              shiftMinutes = remainingMin;
+              shift = { start: shift.start, stop: _minutesToHHMM(_timeToMinutes(shift.start) + remainingMin) };
+            }
+
+            if (!skipDay) {
+              oznWeeklyMinutesUsed[emp.employeeId] += shiftMinutes;
+            }
+          }
+
+          if (!skipDay) {
+            typDnia = 'Praca';
+            start = shift.start;
+            stop = shift.stop;
+            workingCount++;
+          }
         }
       }
 

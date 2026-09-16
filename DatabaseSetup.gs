@@ -18,7 +18,7 @@ function getDatabaseSchema() {
       // jednej wartości na wiersz (rosnąco w dół), niezależnie od
       // pozostałych kolumn.
       headers: [
-        'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP',
+        'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP', 'NORMA_OZN_TYGODNIOWA_UOP',
         'MIESIAC_GRAFIKU', 'WEBHOOK_URL', 'PRACODAWCY_TELEGRAM_IDS',
         'dni pracy', 'godziny pracy',
         'NADGODZINY', // TAK/NIE - globalna zgoda firmy na nadgodziny (patrz isOvertimeAllowed() w Config.gs). OzN nigdy nie ma nadgodzin, niezależnie od tej wartości.
@@ -33,14 +33,18 @@ function getDatabaseSchema() {
         'KOLOR_UWAGA', // j.w. - wyliczany automatycznie.
         'KOLOR_TLO'    // j.w. - wyliczany automatycznie (jasny, stonowany neutralny odcień).
       ],
+      // NORMA_OZN_UOP (dobowa) i NORMA_OZN_TYGODNIOWA_UOP (tygodniowa) to
+      // DWA NIEZALEŻNE limity dla OzN (Art. 15 ustawy o rehabilitacji
+      // zawodowej: 7h/dzień ORAZ 35h/tydzień) - generator Grafiku pilnuje
+      // obu naraz, nie tylko dobowego (patrz GrafikGeneratorService.gs).
       initialData: [
-        ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit', 7, '#2EA6FF', '#31C46C', '#FF5A5F', '#F2F2F2'],
-        ['', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '', '', '', '', '', '', '']
+        ['Moja Firma Sp. z o.o.', '', 8, 7, 35, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit', 7, '#2EA6FF', '#31C46C', '#FF5A5F', '#F2F2F2'],
+        ['', '', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '', '', '', '', '', '', '']
       ]
     },
     'Pracownicy': {
@@ -56,13 +60,14 @@ function getDatabaseSchema() {
         'Staz_Pracy_Lata',    // Łączny staż pracy z edukacją
         'Licz_błędy',         // Licznik prób PIN
         'PIN',                // Jednorazowy PIN rejestracyjny
-        'Suma_Urlopów',       // 20, 26, 30 (+10 OzN)
-        'Norma_Godzin_OzN'    // dobowa norma godzin OzN tego pracownika, np. 7; puste = użyj globalnego Ustawienia!NORMA_OZN_UOP. Patrz _applyOznHourLimit() w GrafikGeneratorService.gs.
+        'Suma_Urlopów',           // 20, 26, 30 (+10 OzN)
+        'Norma_Dobowa_OzN',       // dobowa norma godzin OzN tego pracownika, np. 7; puste = użyj globalnego Ustawienia!NORMA_OZN_UOP.
+        'Norma_Tygodniowa_OzN'    // tygodniowa norma godzin OzN tego pracownika, np. 35; puste = użyj globalnego Ustawienia!NORMA_OZN_TYGODNIOWA_UOP. Oba limity (dobowy i tygodniowy) obowiązują NIEZALEŻNIE - patrz _applyOznHourLimit()/generateGrafikForPeriod() w GrafikGeneratorService.gs.
       ],
       initialData: [
-        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26, ''],
-        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30, 7], // 20 + 10 OzN, 7h/dzień
-        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0, '']
+        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26, '', ''],
+        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30, 7, 35], // 20 + 10 OzN, 7h/dzień, 35h/tydzień
+        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0, '', '']
       ]
     },
     'Grafik': {

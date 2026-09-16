@@ -130,6 +130,12 @@ function getNormaOznUop() {
   return value > 0 ? value : 7;
 }
 
+/** Tygodniowa norma godzin dla pracownika OzN (kolumna NORMA_OZN_TYGODNIOWA_UOP), domyślnie 35. */
+function getNormaOznTygodniowa() {
+  const value = Number(getSettingValue('NORMA_OZN_TYGODNIOWA_UOP'));
+  return value > 0 ? value : 35;
+}
+
 /**
  * Czy w firmie w ogóle dopuszcza się nadgodziny (kolumna NADGODZINY w
  * Ustawienia, TAK/NIE). Domyślnie NIE (bezpieczny wariant), dopóki
