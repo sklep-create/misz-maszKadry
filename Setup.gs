@@ -14,7 +14,8 @@ function onOpen() {
     .addItem('🚀 Wygeneruj całą bazę danych od nowa', 'setupDatabaseStructure')
     .addItem('🔁 Przebuduj wybrany arkusz od nowa', 'showRebuildSheetDialog')
     .addItem('📋 Wstaw przykładowe dane (tylko otwarty arkusz)', 'insertSampleDataIntoActiveSheet')
-    .addItem('➕ Dodaj brakujące kolumny do Ustawień (bezpieczne)', 'ensureSettingsColumnsExist');
+    .addItem('➕ Dodaj brakujące kolumny do Ustawień (bezpieczne)', 'ensureSettingsColumnsExist')
+    .addItem('➕ Dodaj brakujące kolumny do Pracowników (bezpieczne)', 'ensureEmployeeColumnsExist');
 
   const webhookMenu = ui.createMenu('🔗 Telegram: Webhook i wdrożenie')
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')

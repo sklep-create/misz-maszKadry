@@ -56,12 +56,13 @@ function getDatabaseSchema() {
         'Staz_Pracy_Lata',    // Łączny staż pracy z edukacją
         'Licz_błędy',         // Licznik prób PIN
         'PIN',                // Jednorazowy PIN rejestracyjny
-        'Suma_Urlopów'        // 20, 26, 30 (+10 OzN)
+        'Suma_Urlopów',       // 20, 26, 30 (+10 OzN)
+        'Norma_Godzin_OzN'    // dobowa norma godzin OzN tego pracownika, np. 7; puste = użyj globalnego Ustawienia!NORMA_OZN_UOP. Patrz _applyOznHourLimit() w GrafikGeneratorService.gs.
       ],
       initialData: [
-        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
-        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30], // 20 + 10 OzN
-        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0]
+        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26, ''],
+        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30, 7], // 20 + 10 OzN, 7h/dzień
+        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0, '']
       ]
     },
     'Grafik': {
@@ -237,14 +238,16 @@ function buildSheetFromSchema(ss, sheetName, config) {
 }
 
 /**
- * Dopisuje do arkusza Ustawienia brakujące nagłówki kolumn ze schematu, BEZ
+ * Dopisuje do PODANEGO arkusza brakujące nagłówki kolumn ze schematu, BEZ
  * ruszania istniejących danych - bezpieczne uzupełnienie żywego arkusza po
- * dodaniu nowych ustawień do generatora (np. DNI_GRAFIKU). Uruchom RAZ z
- * edytora albo menu, kiedy schemat się zmieni.
+ * dodaniu nowych kolumn do generatora (np. DNI_GRAFIKU, KOLOR_MARKA,
+ * Norma_Godzin_OzN). Uruchom RAZ z edytora albo menu, kiedy schemat się
+ * zmieni. `sheetName` to nazwa zakładki, taka sama jak klucz w schemacie
+ * (np. CONFIG.SHEETS.SETTINGS, CONFIG.SHEETS.EMPLOYEES).
  */
-function ensureSettingsColumnsExist() {
-  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
-  const schema = getDatabaseSchema()['Ustawienia'];
+function ensureSheetColumnsExist(sheetName) {
+  const sheet = getSpreadsheet().getSheetByName(sheetName);
+  const schema = getDatabaseSchema()[sheetName];
   const lastCol = sheet.getLastColumn();
   const existingHeaders = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
   // Porównanie bez rozróżniania wielkości liter - "Nadgodziny" i "NADGODZINY"
@@ -257,7 +260,7 @@ function ensureSettingsColumnsExist() {
 
   let msg;
   if (missing.length === 0) {
-    msg = 'ℹ️ Wszystkie kolumny ze schematu już istnieją w Ustawieniach.';
+    msg = 'ℹ️ Wszystkie kolumny ze schematu już istnieją w "' + sheetName + '".';
   } else {
     const startCol = lastCol + 1;
     const headerRange = sheet.getRange(1, startCol, 1, missing.length);
@@ -272,7 +275,7 @@ function ensureSettingsColumnsExist() {
       sheet.autoResizeColumn(startCol + i);
     }
 
-    msg = '✅ Dodano brakujące kolumny: ' + missing.join(', ');
+    msg = '✅ Dodano brakujące kolumny w "' + sheetName + '": ' + missing.join(', ');
   }
 
   Logger.log(msg);
@@ -282,6 +285,16 @@ function ensureSettingsColumnsExist() {
     // Brak kontekstu UI - wynik jest w Logger.log powyżej.
   }
   return msg;
+}
+
+/** Dopisuje do Ustawień brakujące kolumny ze schematu (patrz ensureSheetColumnsExist). */
+function ensureSettingsColumnsExist() {
+  return ensureSheetColumnsExist(CONFIG.SHEETS.SETTINGS);
+}
+
+/** Dopisuje do Pracowników brakujące kolumny ze schematu (patrz ensureSheetColumnsExist). */
+function ensureEmployeeColumnsExist() {
+  return ensureSheetColumnsExist(CONFIG.SHEETS.EMPLOYEES);
 }
 
 /**

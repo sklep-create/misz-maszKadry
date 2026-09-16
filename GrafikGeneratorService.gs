@@ -84,24 +84,28 @@ function _getAllEmployeesWithChat() {
       employeeId: employeeId,
       chatId: (data[i][1] || '').toString(),
       fullName: data[i][2] || employeeId,
-      isOzn: stopienOzn !== '' && stopienOzn !== 'Brak'
+      isOzn: stopienOzn !== '' && stopienOzn !== 'Brak',
+      normaGodzinOzn: Number(data[i][11]) || null // nadpisanie per-pracownik (Pracownicy!Norma_Godzin_OzN); puste = użyj globalnego NORMA_OZN_UOP
     });
   }
 
   return employees;
 }
 
-/** Skraca zmianę do dobowej normy OzN (Ustawienia!NORMA_OZN_UOP, domyślnie 7h),
- *  licząc od tej samej godziny startu - zgodnie z Art. 15 ustawy o rehabilitacji
- *  zawodowej (7h/dzień, 35h/tydzień dla znacznego/umiarkowanego stopnia
- *  niepełnosprawności). Nie wydłuża zmiany, jeśli firma ma tego dnia i tak
- *  krótsze godziny niż norma OzN. */
-function _applyOznHourLimit(parsedHours, isOzn) {
+/** Skraca zmianę do dobowej normy OzN, licząc od tej samej godziny startu -
+ *  zgodnie z Art. 15 ustawy o rehabilitacji zawodowej (7h/dzień, 35h/tydzień
+ *  dla znacznego/umiarkowanego stopnia niepełnosprawności - przepisy mogą się
+ *  zmienić, stąd liczba godzin jest konfigurowalna). Norma per pracownik
+ *  (Pracownicy!Norma_Godzin_OzN) ma pierwszeństwo; jeśli pusta - używana jest
+ *  globalna Ustawienia!NORMA_OZN_UOP (domyślnie 7h). Nie wydłuża zmiany,
+ *  jeśli firma ma tego dnia i tak krótsze godziny niż norma OzN. */
+function _applyOznHourLimit(parsedHours, isOzn, normaGodzinOzn) {
   if (!isOzn) return parsedHours;
 
+  const norma = normaGodzinOzn > 0 ? normaGodzinOzn : getNormaOznUop();
   const startMin = _timeToMinutes(parsedHours.start);
   const naturalStopMin = _timeToMinutes(parsedHours.stop);
-  const oznStopMin = startMin + getNormaOznUop() * 60;
+  const oznStopMin = startMin + norma * 60;
   const stopMin = Math.min(naturalStopMin, oznStopMin);
 
   return { start: parsedHours.start, stop: _minutesToHHMM(stopMin) };
@@ -161,7 +165,7 @@ function generateGrafikForPeriod(startDate, endDate) {
         }
 
         if (availabilityCache[cacheKey].indexOf(d.getDate()) === -1) {
-          const shift = _applyOznHourLimit(parsedHours, emp.isOzn);
+          const shift = _applyOznHourLimit(parsedHours, emp.isOzn, emp.normaGodzinOzn);
           typDnia = 'Praca';
           start = shift.start;
           stop = shift.stop;
