@@ -1,7 +1,16 @@
 /**
  * Generowanie zbiorczego grafiku pracy całej firmy jako kolorowy PDF do
- * druku (tabela: wiersze = pracownicy, kolumny = dni okresu). Konwersja
- * HTML → PDF przez Utilities.newBlob(...).getAs('application/pdf').
+ * druku (tabela: wiersze = pracownicy, kolumny = dni okresu).
+ *
+ * WAŻNE: Utilities.newBlob(html, ...).getAs('application/pdf') (pierwotne
+ * podejście) NIE honoruje kolorów tła komórek/divów - ani przez <style>,
+ * ani inline - stąd PDF wychodził bez żadnych kolorów mimo poprawnego HTML
+ * (potwierdzone przez użytkownika, PDF wyglądał jak goła tabela). Dlatego
+ * generator buduje TYMCZASOWY arkusz Google z prawdziwym formatowaniem
+ * komórek (setBackground/setFontColor/setBorder) i eksportuje go natywnym
+ * mechanizmem eksportu Arkuszy (ten sam silnik co "Plik → Pobierz → PDF"),
+ * który kolory i obramowania renderuje poprawnie. Tymczasowy arkusz jest
+ * usuwany zaraz po eksporcie.
  */
 
 const GRAFIK_PDF_FOLDER_NAME = 'Kadry - Grafiki PDF';
@@ -50,12 +59,22 @@ function _getLatestGrafikPeriodRange() {
   return { start: minDate, end: maxDate };
 }
 
-/** Buduje kolorowy HTML zbiorczego grafiku dla podanego zakresu dat. */
-function _buildGrafikZbiorczyHtml(startDate, endDate) {
+/**
+ * Buduje tymczasowy, w pełni sformatowany arkusz zbiorczego grafiku dla
+ * podanego zakresu dat i eksportuje go jako PDF natywnym eksportem Arkuszy
+ * Google. Arkusz jest usuwany zaraz po eksporcie (w finally - zawsze, nawet
+ * przy błędzie).
+ */
+function _generateGrafikZbiorczyPdfBlob(startDate, endDate) {
+  const ss = getSpreadsheet();
   const employees = _getAllEmployeesWithChat();
-  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SCHEDULE);
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.SCHEDULE);
   const data = sheet.getDataRange().getValues();
   const daysOffSet = getCompanyDaysOffSet(startDate, endDate);
+  const theme = getThemeColors();
+  const textOnMarka = getContrastingTextColor(theme.marka);
+  const textOnPraca = getContrastingTextColor(theme.praca);
+  const textOnUwaga = getContrastingTextColor(theme.uwaga);
 
   const grafikMap = {};
   for (let i = 1; i < data.length; i++) {
@@ -74,89 +93,114 @@ function _buildGrafikZbiorczyHtml(startDate, endDate) {
     days.push(new Date(d));
   }
 
-  const headerCells = days.map(function (d) {
-    const dow = d.getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const dateStr = Utilities.formatDate(d, 'CET', 'yyyy-MM-dd');
-    const isHoliday = !!daysOffSet[dateStr];
-    const cls = isHoliday ? 'holiday-header' : (isWeekend ? 'weekend-header' : '');
-    return '<th class="' + cls + '">' + d.getDate() + '<br><span class="dow">' + GRAFIK_PDF_DAY_NAMES_SHORT[dow] + '</span></th>';
-  }).join('');
-
-  const rows = employees.map(function (emp, empIndex) {
-    const cells = days.map(function (d) {
-      const dateStr = Utilities.formatDate(d, 'CET', 'yyyy-MM-dd');
-      const entry = grafikMap[emp.employeeId + '|' + dateStr];
-      const isHoliday = !!daysOffSet[dateStr];
-
-      if (entry && entry.type === 'Praca') {
-        return '<td class="praca">' + entry.start.slice(0, 5) + '<br>' + entry.stop.slice(0, 5) + '</td>';
-      }
-      if (isHoliday) {
-        return '<td class="swieto">ŚWIĘTO</td>';
-      }
-      return '<td class="wolne">WOLNE</td>';
-    }).join('');
-    const rowCls = empIndex % 2 === 0 ? 'row-even' : 'row-odd';
-    return '<tr class="' + rowCls + '"><td class="emp-name">' + escapeHtml(emp.fullName) + '</td>' + cells + '</tr>';
-  }).join('');
-
   const nazwaFirmy = (getSettingValue('NAZWA_FIRMY') || 'Firma').toString();
   const startStr = Utilities.formatDate(startDate, 'CET', 'd MMMM yyyy');
   const endStr = Utilities.formatDate(endDate, 'CET', 'd MMMM yyyy');
+  const numCols = days.length + 1; // +1 na kolumnę z nazwiskiem
 
-  // Paleta projektu (Ustawienia!KOLOR_MARKA/PRACA/UWAGA/TLO) - patrz PaletaKolorow.gs.
-  const theme = getThemeColors();
-  const textOnMarka = getContrastingTextColor(theme.marka);
-  const textOnPraca = getContrastingTextColor(theme.praca);
-  const textOnUwaga = getContrastingTextColor(theme.uwaga);
+  const tempSheet = ss.insertSheet('__grafik_pdf_tmp__' + new Date().getTime());
 
-  // Uwaga: konwerter Apps Script (Utilities.newBlob(html).getAs('application/pdf'))
-  // NIE renderuje dobrze gradientów/border-radius/subtelnych pasteli - stąd
-  // celowo tylko płaskie, mocno nasycone kolory i grube czcionki.
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
-    '@page { size: A4 landscape; margin: 8mm; }' +
-    'body { font-family: Arial, sans-serif; font-size: 11px; color: #000; margin: 0; }' +
-    '.banner { background: ' + theme.marka + '; color: ' + textOnMarka + '; padding: 10px 16px; margin-bottom: 10px; }' +
-    '.banner h1 { font-size: 22px; margin: 0; font-weight: bold; }' +
-    '.banner .subtitle { color: ' + textOnMarka + '; font-size: 13px; font-weight: bold; }' +
-    'table { border-collapse: collapse; width: 100%; }' +
-    'th, td { border: 2px solid #000; padding: 5px 2px; text-align: center; }' +
-    'th { background: ' + theme.marka + '; color: ' + textOnMarka + '; font-size: 10px; font-weight: bold; }' +
-    'th .dow { display: block; font-size: 9px; }' +
-    'th.weekend-header { background: #4A5568; color: #fff; }' +
-    'th.holiday-header { background: ' + theme.uwaga + '; color: ' + textOnUwaga + '; }' +
-    'td.emp-name { text-align: left; font-weight: bold; background: #D9D9D9; white-space: nowrap; padding-left: 8px; font-size: 12px; }' +
-    'tr.row-odd td.wolne { background: #E8E8E8; }' +
-    'td.praca { background: ' + theme.praca + '; color: ' + textOnPraca + '; font-weight: bold; font-size: 11px; }' +
-    'td.wolne { background: ' + theme.tlo + '; color: #555; font-weight: bold; font-size: 9px; }' +
-    'td.swieto { background: ' + theme.uwaga + '; color: ' + textOnUwaga + '; font-weight: bold; font-size: 9px; }' +
-    '.legend { margin-top: 12px; font-size: 11px; font-weight: bold; }' +
-    '.legend span.item { display: inline-block; margin-right: 20px; }' +
-    '.swatch { display: inline-block; width: 14px; height: 14px; margin-right: 5px; vertical-align: middle; border: 1px solid #000; }' +
-    '.footer { margin-top: 10px; font-size: 8px; color: #666; }' +
-    '</style></head><body>' +
-    '<div class="banner">' +
-    '<h1>' + escapeHtml(nazwaFirmy) + ' — GRAFIK PRACY</h1>' +
-    '<div class="subtitle">' + startStr + ' – ' + endStr + '</div>' +
-    '</div>' +
-    '<table><thead><tr><th>Pracownik</th>' + headerCells + '</tr></thead><tbody>' + rows + '</tbody></table>' +
-    '<div class="legend">' +
-    '<span class="item"><span class="swatch" style="background:' + theme.praca + ';"></span>PRACA (godziny)</span>' +
-    '<span class="item"><span class="swatch" style="background:' + theme.tlo + ';"></span>WOLNE</span>' +
-    '<span class="item"><span class="swatch" style="background:' + theme.uwaga + ';"></span>ŚWIĘTO / dzień zamknięcia firmy</span>' +
-    '</div>' +
-    '<div class="footer">Wygenerowano: ' + Utilities.formatDate(new Date(), 'CET', 'yyyy-MM-dd HH:mm') + '</div>' +
-    '</body></html>';
-}
+  try {
+    // Wiersz 1: baner (scalony na całą szerokość)
+    tempSheet.getRange(1, 1, 1, numCols).merge()
+      .setValue(nazwaFirmy + ' — GRAFIK PRACY   (' + startStr + ' – ' + endStr + ')')
+      .setBackground(theme.marka)
+      .setFontColor(textOnMarka)
+      .setFontSize(14)
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle');
+    tempSheet.setRowHeight(1, 32);
 
-/** Ucieczka znaków specjalnych HTML (nazwiska mogą zawierać & < > "). */
-function escapeHtml(value) {
-  return (value == null ? '' : value.toString())
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    // Wiersz 2: nagłówki dni
+    const headerRow = ['Pracownik'].concat(days.map(function (d) {
+      return d.getDate() + ' ' + GRAFIK_PDF_DAY_NAMES_SHORT[d.getDay()];
+    }));
+    tempSheet.getRange(2, 1, 1, numCols).setValues([headerRow])
+      .setBackground(theme.marka)
+      .setFontColor(textOnMarka)
+      .setFontWeight('bold')
+      .setFontSize(9)
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle');
+
+    days.forEach(function (d, i) {
+      const dow = d.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+      const dateStr = Utilities.formatDate(d, 'CET', 'yyyy-MM-dd');
+      const isHoliday = !!daysOffSet[dateStr];
+      if (isHoliday) {
+        tempSheet.getRange(2, i + 2).setBackground(theme.uwaga).setFontColor(textOnUwaga);
+      } else if (isWeekend) {
+        tempSheet.getRange(2, i + 2).setBackground('#4A5568').setFontColor('#FFFFFF');
+      }
+    });
+
+    // Wiersze danych - jeden na pracownika
+    employees.forEach(function (emp, empIndex) {
+      const r = 3 + empIndex;
+      tempSheet.getRange(r, 1).setValue(emp.fullName)
+        .setBackground('#D9D9D9')
+        .setFontWeight('bold')
+        .setHorizontalAlignment('left')
+        .setVerticalAlignment('middle');
+
+      days.forEach(function (d, i) {
+        const dateStr = Utilities.formatDate(d, 'CET', 'yyyy-MM-dd');
+        const entry = grafikMap[emp.employeeId + '|' + dateStr];
+        const isHoliday = !!daysOffSet[dateStr];
+        const cell = tempSheet.getRange(r, i + 2);
+        cell.setHorizontalAlignment('center').setVerticalAlignment('middle').setFontSize(9).setFontWeight('bold');
+
+        if (entry && entry.type === 'Praca') {
+          cell.setValue(entry.start.slice(0, 5) + '-' + entry.stop.slice(0, 5))
+            .setBackground(theme.praca).setFontColor(textOnPraca);
+        } else if (isHoliday) {
+          cell.setValue('ŚWIĘTO').setBackground(theme.uwaga).setFontColor(textOnUwaga);
+        } else {
+          cell.setValue('WOLNE').setBackground(theme.tlo).setFontColor('#555555');
+        }
+      });
+    });
+
+    // Wiersz legendy
+    const legendRow = 3 + employees.length + 1;
+    tempSheet.getRange(legendRow, 1).setValue('Legenda:').setFontWeight('bold');
+    tempSheet.getRange(legendRow, 2).setValue('PRACA').setBackground(theme.praca).setFontColor(textOnPraca).setFontWeight('bold').setHorizontalAlignment('center');
+    tempSheet.getRange(legendRow, 3).setValue('WOLNE').setBackground(theme.tlo).setFontColor('#555555').setFontWeight('bold').setHorizontalAlignment('center');
+    tempSheet.getRange(legendRow, 4).setValue('ŚWIĘTO').setBackground(theme.uwaga).setFontColor(textOnUwaga).setFontWeight('bold').setHorizontalAlignment('center');
+
+    // Obramowania na siatce danych (baner i legenda zostają bez ramki)
+    tempSheet.getRange(2, 1, 1 + employees.length, numCols)
+      .setBorder(true, true, true, true, true, true, '#000000', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+
+    tempSheet.setColumnWidth(1, 140);
+    for (let c = 2; c <= numCols; c++) {
+      tempSheet.setColumnWidth(c, 55);
+    }
+    tempSheet.setFrozenRows(2);
+    tempSheet.setFrozenColumns(1);
+    tempSheet.setHiddenGridlines(true);
+
+    SpreadsheetApp.flush();
+
+    // Eksport natywnym mechanizmem Arkuszy Google - w przeciwieństwie do
+    // Utilities.newBlob(html).getAs('application/pdf') POPRAWNIE renderuje
+    // tła komórek i obramowania (to ten sam silnik co "Plik → Pobierz → PDF").
+    const exportUrl = 'https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export' +
+      '?format=pdf&gid=' + tempSheet.getSheetId() +
+      '&portrait=false&size=A4&fitw=true&scale=2' +
+      '&gridlines=false&printtitle=false&sheetnames=false&pagenumbers=false&fzr=true' +
+      '&top_margin=0.3&bottom_margin=0.3&left_margin=0.3&right_margin=0.3';
+
+    const response = UrlFetchApp.fetch(exportUrl, {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }
+    });
+
+    return response.getBlob();
+  } finally {
+    ss.deleteSheet(tempSheet);
+  }
 }
 
 /**
@@ -172,8 +216,7 @@ function generujGrafikZbiorczyPdf() {
     return msg;
   }
 
-  const html = _buildGrafikZbiorczyHtml(range.start, range.end);
-  const blob = Utilities.newBlob(html, 'text/html', 'grafik.html').getAs('application/pdf');
+  const blob = _generateGrafikZbiorczyPdfBlob(range.start, range.end);
 
   const startStr = Utilities.formatDate(range.start, 'CET', 'yyyy-MM-dd');
   const endStr = Utilities.formatDate(range.end, 'CET', 'yyyy-MM-dd');
