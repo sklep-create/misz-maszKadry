@@ -6,6 +6,17 @@
     <title>Panel Pracownika</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <?!= include('Styles'); ?>
+    <style>
+      /* Paleta projektu (Ustawienia!KOLOR_MARKA/PRACA/UWAGA) - patrz PaletaKolorow.gs.
+         Nadpisuje domyślne akcenty z Styles.html; tło/powierzchnie ciemnego
+         motywu zostają bez zmian (KOLOR_TLO to jasny neutralny odcień, używany
+         w PDF - nie pasuje bezpośrednio do ciemnego tła Mini App). */
+      :root {
+        --accent: <?= getThemeColor('MARKA') ?>;
+        --start: <?= getThemeColor('PRACA') ?>;
+        --stop: <?= getThemeColor('UWAGA') ?>;
+      }
+    </style>
   </head>
   <body>
     <main class="panel" id="employeePanel" style="display:none;">

@@ -52,6 +52,9 @@ function onOpen() {
     .addItem('⏰ Zainstaluj automatyczny backup (raz)', 'zainstalujAutomatycznyBackupArkusza')
     .addItem('♻️ Przywróć dane z backupu...', 'pokazDialogPrzywracaniaBackupu');
 
+  const appearanceMenu = ui.createMenu('🎨 Wygląd')
+    .addItem('🎨 Wygeneruj paletę kolorów z KOLOR_MARKA', 'wygenerujPaletKolorow');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addSubMenu(setupMenu)
     .addSubMenu(databaseMenu)
@@ -59,6 +62,7 @@ function onOpen() {
     .addSubMenu(grafikMenu)
     .addSubMenu(daysOffMenu)
     .addSubMenu(backupMenu)
+    .addSubMenu(appearanceMenu)
     .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
