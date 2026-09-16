@@ -167,6 +167,39 @@ function getDatabaseSchema() {
       secondBlockInitialData: [
         ['2026-12-24', 'Wigilia (dodatkowy dzień wolny sklepu)', 'Dodatkowe']
       ]
+    },
+    'Podstawy prawne': {
+      color: '#742A2A', // Bordowy - odróżnia od pozostałych zakładek operacyjnych
+      // Zakładka informacyjna (referencyjna) - NIE jest czytana przez żaden
+      // kod, tylko dla ludzi. Dane sprawdzone bezpośrednio w oficjalnych
+      // tekstach jednolitych pobranych do docs/prawo/:
+      // - Kodeks_pracy_Dz.U.2025.277_tekst_jednolity.pdf (Dz.U. 2025 poz. 277)
+      // - Ustawa_o_rehabilitacji_zawodowej_Dz.U.2025.913_tekst_jednolity.pdf (Dz.U. 2025 poz. 913)
+      // Uwaga: to snapshoty na dzień pobrania (wrzesień 2026) - Kodeks pracy i
+      // ustawa o rehabilitacji bywają nowelizowane, więc od czasu do czasu
+      // warto ręcznie zweryfikować i zaktualizować wartości (isap.sejm.gov.pl).
+      headers: ['Kategoria', 'Zagadnienie', 'Wartość', 'Podstawa prawna', 'Uwagi'],
+      initialData: [
+        ['Czas pracy (pełny etat)', 'Norma dobowa', '8 godzin/dobę', 'Art. 129 §1 KP', 'Podstawowy system czasu pracy'],
+        ['Czas pracy (pełny etat)', 'Norma tygodniowa', 'przeciętnie 40 godzin (przeciętny 5-dniowy tydzień)', 'Art. 129 §1 KP', 'Okres rozliczeniowy standardowo do 4 miesięcy'],
+        ['Czas pracy (pełny etat)', 'Odpoczynek dobowy', 'min. 11 godzin nieprzerwanego odpoczynku', 'Art. 132 §1 KP', ''],
+        ['Czas pracy (pełny etat)', 'Odpoczynek tygodniowy', 'min. 35 godzin nieprzerwanego odpoczynku (w tym min. 11h dobowego)', 'Art. 133 §1 KP', ''],
+        ['Czas pracy (pełny etat)', 'Przerwa w pracy', '15 min przy dobowym wymiarze ≥6h (wliczana do czasu pracy)', 'Art. 134 §1 pkt 1 KP', 'Kolejne 15 min przy >9h i >16h dobowego wymiaru'],
+        ['Nadgodziny', 'Tygodniowy limit z nadgodzinami', 'przeciętnie max 48 godzin/tydzień', 'Art. 131 §1 KP', ''],
+        ['Nadgodziny', 'Roczny limit nadgodzin', '150 godzin/rok kalendarzowy', 'Art. 151 §3 KP', 'Inny limit można ustalić w układzie zbiorowym/regulaminie/umowie (Art. 151 §4 KP)'],
+        ['Nadgodziny', 'Dodatek za nadgodziny', '100% (noc, niedziele/święta niebędące dniem pracy, dzień wolny w zamian) albo 50% (pozostałe przypadki)', 'Art. 151(1) §1 KP', ''],
+        ['Urlop wypoczynkowy', 'Wymiar urlopu', '20 dni (staż <10 lat) / 26 dni (staż ≥10 lat)', 'Art. 154 §1 KP', 'Do stażu wlicza się okresy nauki (Art. 155 KP)'],
+        ['Urlop wypoczynkowy', 'Przelicznik dnia urlopu', '1 dzień urlopu = 8 godzin pracy', 'Art. 154(2) §2 KP', ''],
+        ['Urlop wypoczynkowy', 'Ekwiwalent za niewykorzystany urlop', 'przysługuje przy rozwiązaniu/wygaśnięciu umowy', 'Art. 171 §1 KP', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Brak/Lekki stopień)', '8 godzin/dobę', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', 'Ta sama norma co przy pełnym etacie'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Brak/Lekki stopień)', '40 godzin/tydzień', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Umiarkowany/Znaczny stopień)', '7 godzin/dobę', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Patrz Ustawienia!NORMA_OZN_UOP'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Umiarkowany/Znaczny stopień)', '35 godzin/tydzień', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Patrz Ustawienia!NORMA_OZN_TYGODNIOWA_UOP'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Zakaz nadgodzin i pracy nocnej', 'dotyczy KAŻDEGO stopnia niepełnosprawności (także Lekkiego)', 'Art. 15 ust. 3 ustawy o rehabilitacji zawodowej', 'Patrz canEmployeeHaveOvertime() w Config.gs'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowa przerwa', '15 minut (wliczana do czasu pracy)', 'Art. 17 ustawy o rehabilitacji zawodowej', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowy urlop wypoczynkowy', '10 dni roboczych/rok (tylko Umiarkowany/Znaczny stopień)', 'Art. 19 ust. 1 ustawy o rehabilitacji zawodowej', 'Prawo po 1 roku pracy od dnia zaliczenia do stopnia; nie przysługuje przy urlopie podstawowym >26 dni (Art. 19 ust. 2)'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Zwolnienie na turnus rehabilitacyjny', 'do 21 dni roboczych/rok, z zachowaniem wynagrodzenia', 'Art. 20 ust. 1 ustawy o rehabilitacji zawodowej', 'Łącznie z dodatkowym urlopem (wiersz wyżej) max 21 dni/rok (Art. 20 ust. 3)']
+      ]
     }
   };
 }

@@ -64,3 +64,19 @@ uprawnień Google.
 ## Zasady kodu:
 - Kod serwerowy pisz w `.js` (GAS traktuje je jak `.gs`).
 - Pliki widoku twórz w `.html`.
+
+## Źródła prawne (docs/prawo/, 2026-09-16)
+
+Zakładka "Podstawy prawne" (schemat w `DatabaseSetup.gs`) zawiera dane
+sprawdzone bezpośrednio w oficjalnych tekstach jednolitych, pobranych przez
+`api.sejm.gov.pl` (ten sam system co ISAP, ale bez CAPTCHA na pobieranie PDF):
+- `docs/prawo/Kodeks_pracy_Dz.U.2025.277_tekst_jednolity.pdf` (Dz.U. 2025 poz. 277,
+  obwieszczenie z 14.02.2025 r.) — normy czasu pracy, nadgodziny, urlopy (Art. 129-172 KP).
+- `docs/prawo/Ustawa_o_rehabilitacji_zawodowej_Dz.U.2025.913_tekst_jednolity.pdf`
+  (Dz.U. 2025 poz. 913, obwieszczenie z 26.06.2025 r.) — czas pracy i uprawnienia
+  OzN (Art. 15-20), w tym norma 7h/35h dla stopnia znacznego/umiarkowanego.
+
+To snapshoty na dzień pobrania - obie ustawy bywają nowelizowane (widoczne były
+już nowsze nowelizacje Kodeksu pracy z 2025/2026, nieuwzględnione jeszcze w
+tekście jednolitym z lutego 2025), więc wartości w zakładce warto od czasu do
+czasu ręcznie zweryfikować na isap.sejm.gov.pl.
