@@ -60,14 +60,16 @@ function getDatabaseSchema() {
         'Staz_Pracy_Lata',    // Łączny staż pracy z edukacją
         'Licz_błędy',         // Licznik prób PIN
         'PIN',                // Jednorazowy PIN rejestracyjny
-        'Suma_Urlopów',           // 20, 26, 30 (+10 OzN)
-        'Norma_Dobowa_OzN',       // dobowa norma godzin OzN tego pracownika, np. 7; puste = użyj globalnego Ustawienia!NORMA_OZN_UOP.
-        'Norma_Tygodniowa_OzN'    // tygodniowa norma godzin OzN tego pracownika, np. 35; puste = użyj globalnego Ustawienia!NORMA_OZN_TYGODNIOWA_UOP. Oba limity (dobowy i tygodniowy) obowiązują NIEZALEŻNIE - patrz _applyOznHourLimit()/generateGrafikForPeriod() w GrafikGeneratorService.gs.
+        'Suma_Urlopów'        // 20, 26, 30 (+10 OzN)
       ],
+      // Godziny pracy OzN (dobowe/tygodniowe) NIE mają osobnej kolumny tutaj
+      // celowo - wynikają WYŁĄCZNIE ze Stopien_OZN (patrz _oznMaSkrocenieCzasuPracy()
+      // i Ustawienia!NORMA_OZN_UOP/NORMA_OZN_TYGODNIOWA_UOP w GrafikGeneratorService.gs) -
+      // jedna kolumna Stopien_OZN wystarcza, druga byłaby zbędnym duplikatem.
       initialData: [
-        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26, '', ''],
-        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30, 7, 35], // 20 + 10 OzN, 7h/dzień, 35h/tydzień
-        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0, '', '']
+        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
+        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30], // 20 + 10 OzN
+        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0]
       ]
     },
     'Grafik': {

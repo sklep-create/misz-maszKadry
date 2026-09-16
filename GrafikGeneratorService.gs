@@ -13,13 +13,18 @@
  * miesięczna niezależnie od długości okresu grafiku - dla każdego dnia
  * sprawdzany jest właściwy miesiąc kalendarzowy tego dnia.
  *
- * Pracownicy z orzeczonym stopniem OzN mają DWA NIEZALEŻNE limity (Art. 15
- * ustawy o rehabilitacji zawodowej: 7h/dzień ORAZ 35h/tydzień, konfigurowalne
- * - patrz Ustawienia!NORMA_OZN_UOP/NORMA_OZN_TYGODNIOWA_UOP i per-pracownik
- * Pracownicy!Norma_Dobowa_OzN/Norma_Tygodniowa_OzN): każda zmiana jest
+ * Pracownicy ze stopniem Umiarkowany lub Znaczny (Pracownicy!Stopien_OZN)
+ * mają, zgodnie z Art. 15 ustawy o rehabilitacji zawodowej, DWA NIEZALEŻNE
+ * limity: 7h/dzień ORAZ 35h/tydzień (liczby konfigurowalne globalnie -
+ * Ustawienia!NORMA_OZN_UOP / NORMA_OZN_TYGODNIOWA_UOP - bo przepisy mogą się
+ * zmienić; JEDNA kolumna Stopien_OZN wystarcza, żadnych dodatkowych kolumn
+ * per pracownik). Stopień Lekki NIE uprawnia do skróconego czasu pracy (tylko
+ * Umiarkowany/Znaczny) - patrz _oznMaSkrocenieCzasuPracy(). Każda zmiana jest
  * skracana do limitu dobowego (_applyOznHourLimit()), a licznik tygodniowy
  * (zerowany w każdy poniedziałek) dodatkowo skraca lub całkiem pomija dzień
  * (dodatkowy dzień wolny), jeśli tygodniowy limit zostałby przekroczony.
+ * Limit miesięczny NIE istnieje w przepisach - miesiąc jest naturalnie
+ * ograniczony przez limit tygodniowy (~35h × liczba tygodni).
  */
 
 const GRAFIK_DAY_NAMES = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']; // index = Date.getDay()
@@ -76,7 +81,19 @@ function parseWorkingHoursRange(rangeStr) {
   return { start: _parseHourToken(parts[0]), stop: _parseHourToken(parts[1]) };
 }
 
-/** Lista pracowników z ID_Pracownika, ChatID, imieniem/nazwiskiem i statusem OzN. */
+/**
+ * Czy dany Stopien_OZN uprawnia do skróconego czasu pracy (7h/35h) wg Art. 15
+ * ustawy o rehabilitacji zawodowej - TYLKO Umiarkowany i Znaczny; Lekki i
+ * Brak pracują na normalnych zasadach. To INNA reguła niż zakaz nadgodzin
+ * (canEmployeeHaveOvertime() w Config.gs), który dotyczy KAŻDEGO stopnia -
+ * te dwie funkcje celowo się różnią.
+ */
+function _oznMaSkrocenieCzasuPracy(stopienOzn) {
+  const s = (stopienOzn || '').toString().trim().toLowerCase();
+  return s === 'umiarkowany' || s === 'znaczny';
+}
+
+/** Lista pracowników z ID_Pracownika, ChatID, imieniem/nazwiskiem i uprawnieniem do skróconego czasu pracy OzN. */
 function _getAllEmployeesWithChat() {
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
@@ -85,33 +102,25 @@ function _getAllEmployeesWithChat() {
   for (let i = 1; i < data.length; i++) {
     const employeeId = (data[i][0] || '').toString();
     if (!employeeId) continue;
-    const stopienOzn = (data[i][5] || '').toString().trim();
     employees.push({
       employeeId: employeeId,
       chatId: (data[i][1] || '').toString(),
       fullName: data[i][2] || employeeId,
-      isOzn: stopienOzn !== '' && stopienOzn !== 'Brak',
-      // Nadpisania per-pracownik (Pracownicy!Norma_Dobowa_OzN / Norma_Tygodniowa_OzN);
-      // puste = użyj globalnych Ustawienia!NORMA_OZN_UOP / NORMA_OZN_TYGODNIOWA_UOP.
-      normaDobowaOzn: Number(data[i][11]) || null,
-      normaTygodniowaOzn: Number(data[i][12]) || null
+      oznSkrocenie: _oznMaSkrocenieCzasuPracy(data[i][5])
     });
   }
 
   return employees;
 }
 
-/** Skraca zmianę do dobowej normy OzN, licząc od tej samej godziny startu -
- *  zgodnie z Art. 15 ustawy o rehabilitacji zawodowej (7h/dzień - przepisy
- *  mogą się zmienić, stąd liczba godzin jest konfigurowalna). Norma per
- *  pracownik (Pracownicy!Norma_Dobowa_OzN) ma pierwszeństwo; jeśli pusta -
- *  używana jest globalna Ustawienia!NORMA_OZN_UOP (domyślnie 7h). Nie
- *  wydłuża zmiany, jeśli firma ma tego dnia i tak krótsze godziny niż norma
- *  OzN. Limit TYGODNIOWY (35h) pilnowany jest OSOBNO w generateGrafikForPeriod(). */
-function _applyOznHourLimit(parsedHours, isOzn, normaDobowaOzn) {
-  if (!isOzn) return parsedHours;
+/** Skraca zmianę do globalnej dobowej normy OzN (Ustawienia!NORMA_OZN_UOP,
+ *  domyślnie 7h), licząc od tej samej godziny startu. Nie wydłuża zmiany,
+ *  jeśli firma ma tego dnia i tak krótsze godziny niż norma OzN. Limit
+ *  TYGODNIOWY (35h) pilnowany jest OSOBNO w generateGrafikForPeriod(). */
+function _applyOznHourLimit(parsedHours, oznSkrocenie) {
+  if (!oznSkrocenie) return parsedHours;
 
-  const norma = normaDobowaOzn > 0 ? normaDobowaOzn : getNormaOznUop();
+  const norma = getNormaOznUop();
   const startMin = _timeToMinutes(parsedHours.start);
   const naturalStopMin = _timeToMinutes(parsedHours.stop);
   const oznStopMin = startMin + norma * 60;
@@ -184,12 +193,12 @@ function generateGrafikForPeriod(startDate, endDate) {
         }
 
         if (availabilityCache[cacheKey].indexOf(d.getDate()) === -1) {
-          let shift = _applyOznHourLimit(parsedHours, emp.isOzn, emp.normaDobowaOzn);
+          let shift = _applyOznHourLimit(parsedHours, emp.oznSkrocenie);
           let shiftMinutes = _timeToMinutes(shift.stop) - _timeToMinutes(shift.start);
           let skipDay = false;
 
-          if (emp.isOzn) {
-            const weeklyCapMin = (emp.normaTygodniowaOzn > 0 ? emp.normaTygodniowaOzn : getNormaOznTygodniowa()) * 60;
+          if (emp.oznSkrocenie) {
+            const weeklyCapMin = getNormaOznTygodniowa() * 60;
             const remainingMin = weeklyCapMin - oznWeeklyMinutesUsed[emp.employeeId];
 
             if (remainingMin <= 0) {

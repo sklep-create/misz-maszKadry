@@ -34,9 +34,7 @@ function getEmployeeById(employeeId) {
         employeeId: data[i][0],
         fullName: data[i][2] || '',
         wymiarEtatu: data[i][4],
-        stopienOzn: data[i][5],
-        normaDobowaOzn: data[i][11],
-        normaTygodniowaOzn: data[i][12]
+        stopienOzn: data[i][5]
       };
     }
   }
