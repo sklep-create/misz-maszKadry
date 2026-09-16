@@ -173,59 +173,69 @@ function generateGrafikForPeriod(startDate, endDate) {
     const dayName = GRAFIK_DAY_NAMES[d.getDay()];
     const isHoliday = !!holidaySet[dateStr];
     const parsedHours = isHoliday ? null : parseWorkingHoursRange(weeklyHours[dayName]);
-    let workingCount = 0;
 
     // Poniedziałek = początek nowego tygodnia rozliczeniowego dla limitu OzN.
     if (d.getDay() === 1) {
       employees.forEach(function (emp) { oznWeeklyMinutesUsed[emp.employeeId] = 0; });
     }
 
+    // Firma w ogóle nie pracuje tego dnia (weekend bez skonfigurowanych godzin
+    // albo święto) - ŻADNYCH wierszy, dla nikogo. Wcześniej generowano tu
+    // wiersze "Wolne" z pustym Planowany_Start, co (a) zaśmiecało Grafik
+    // dniami, w które firma jest zamknięta, i (b) checkMissingStartLogs()
+    // traktował pusty Planowany_Start jako "już minęła godzina startu" i
+    // wysyłał fałszywe przypomnienia o braku STARTu w dni wolne.
+    if (!parsedHours) continue;
+
+    let workingCount = 0;
+
     employees.forEach(function (emp) {
       let typDnia = 'Wolne';
       let start = '';
       let stop = '';
 
-      if (parsedHours) {
-        const monthKey = Utilities.formatDate(d, 'CET', 'yyyy-MM');
-        const cacheKey = emp.employeeId + '|' + monthKey;
-        if (!(cacheKey in availabilityCache)) {
-          availabilityCache[cacheKey] = getEmployeeAvailability(emp.employeeId, monthKey);
-        }
+      const monthKey = Utilities.formatDate(d, 'CET', 'yyyy-MM');
+      const cacheKey = emp.employeeId + '|' + monthKey;
+      if (!(cacheKey in availabilityCache)) {
+        availabilityCache[cacheKey] = getEmployeeAvailability(emp.employeeId, monthKey);
+      }
 
-        if (availabilityCache[cacheKey].indexOf(d.getDate()) === -1) {
-          let shift = _applyOznHourLimit(parsedHours, emp.oznSkrocenie);
-          let shiftMinutes = _timeToMinutes(shift.stop) - _timeToMinutes(shift.start);
-          let skipDay = false;
+      if (availabilityCache[cacheKey].indexOf(d.getDate()) === -1) {
+        let shift = _applyOznHourLimit(parsedHours, emp.oznSkrocenie);
+        let shiftMinutes = _timeToMinutes(shift.stop) - _timeToMinutes(shift.start);
+        let skipDay = false;
 
-          if (emp.oznSkrocenie) {
-            const weeklyCapMin = getNormaOznTygodniowa() * 60;
-            const remainingMin = weeklyCapMin - oznWeeklyMinutesUsed[emp.employeeId];
+        if (emp.oznSkrocenie) {
+          const weeklyCapMin = getNormaOznTygodniowa() * 60;
+          const remainingMin = weeklyCapMin - oznWeeklyMinutesUsed[emp.employeeId];
 
-            if (remainingMin <= 0) {
-              skipDay = true; // tygodniowy limit OzN już wyczerpany - dodatkowy dzień wolny
-            } else if (shiftMinutes > remainingMin) {
-              shiftMinutes = remainingMin;
-              shift = { start: shift.start, stop: _minutesToHHMM(_timeToMinutes(shift.start) + remainingMin) };
-            }
-
-            if (!skipDay) {
-              oznWeeklyMinutesUsed[emp.employeeId] += shiftMinutes;
-            }
+          if (remainingMin <= 0) {
+            skipDay = true; // tygodniowy limit OzN już wyczerpany - dodatkowy dzień wolny
+          } else if (shiftMinutes > remainingMin) {
+            shiftMinutes = remainingMin;
+            shift = { start: shift.start, stop: _minutesToHHMM(_timeToMinutes(shift.start) + remainingMin) };
           }
 
           if (!skipDay) {
-            typDnia = 'Praca';
-            start = shift.start;
-            stop = shift.stop;
-            workingCount++;
+            oznWeeklyMinutesUsed[emp.employeeId] += shiftMinutes;
           }
+        }
+
+        if (!skipDay) {
+          typDnia = 'Praca';
+          start = shift.start;
+          stop = shift.stop;
+          workingCount++;
         }
       }
 
+      // Dzień roboczy firmy, ale TEN pracownik ma go zgłoszony jako wolny
+      // (Dyspozycyjność) - wiersz "Wolne" zostaje (to co innego niż dzień
+      // zamknięcia całej firmy, pomijany wyżej przez "if (!parsedHours) continue").
       newRows.push(['GRF-' + Utilities.getUuid(), emp.employeeId, dateStr, start, stop, typDnia]);
     });
 
-    if (parsedHours && workingCount === 0 && employees.length > 0) {
+    if (workingCount === 0 && employees.length > 0) {
       uncoveredDays.push(dateStr);
     }
   }
