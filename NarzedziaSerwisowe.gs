@@ -284,3 +284,36 @@ function usunWszystkieDane() {
   }
   return msg;
 }
+
+/**
+ * Generuje Grafik dla BIEŻĄCEGO miesiąca kalendarzowego (1. do ostatniego dnia),
+ * niezależnie od logiki ciągłych okresów (DNI_GRAFIKU/OSTATNI_DZIEN_GRAFIKU) -
+ * przydatne do szybkiego wygenerowania/przetestowania grafiku bez czekania na
+ * automatyczny cykl. Bezpieczne do wielokrotnego uruchomienia - nadpisuje
+ * tylko wiersze z tego miesiąca (patrz generateGrafikForPeriod()). Celowo NIE
+ * aktualizuje Ustawienia!OSTATNI_DZIEN_GRAFIKU i NIE wysyła powiadomień
+ * Telegram (to robi generateGrafikNowForced() w normalnym cyklu) - to czysto
+ * ręczne narzędzie testowe/naprawcze.
+ */
+function utworzGrafikNaTenMiesiac() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  const result = generateGrafikForPeriod(start, end);
+
+  const startStr = Utilities.formatDate(start, 'CET', 'yyyy-MM-dd');
+  const endStr = Utilities.formatDate(end, 'CET', 'yyyy-MM-dd');
+  let msg = '✅ Wygenerowano Grafik na ' + startStr + ' – ' + endStr + ' (' + result.rowsWritten + ' wpisów).';
+  if (result.uncoveredDays.length > 0) {
+    msg += '\n⚠️ Brak obsady w dni: ' + result.uncoveredDays.join(', ') + '.';
+  }
+
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
