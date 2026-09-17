@@ -120,11 +120,13 @@ function getCompanyLogoUrl() {
 
 /**
  * Szuka w arkuszu "Podstawy prawne" wiersza o podanym Kluczu (ostatnia
- * kolumna) i zwraca jego Wartość_liczbową (przedostatnia kolumna) jako
- * liczbę - albo null, jeśli arkusz nie istnieje albo klucz nie został
- * znaleziony/wypełniony. To jedyny sposób, żeby normy godzin użyte w
- * generatorze Grafiku faktycznie pochodziły z tabeli podstaw prawnych
- * (Config.gs), a nie tylko z jej opisu tekstowego dla ludzi.
+ * kolumna) i zwraca jego Wartość (kolumna 3, celowo sama liczba - patrz
+ * schemat w DatabaseSetup.gs) jako liczbę - albo null, jeśli arkusz nie
+ * istnieje, klucz nie został znaleziony/wypełniony, albo Wartość nie jest
+ * czystą liczbą (np. "100/50" przy dwuwariantowych wierszach - te celowo nie
+ * mają Klucza). To jedyny sposób, żeby normy godzin użyte w generatorze
+ * Grafiku faktycznie pochodziły z tabeli podstaw prawnych (Config.gs), a nie
+ * tylko z jej opisu tekstowego dla ludzi.
  */
 function getPodstawaPrawnaNumber(klucz) {
   const sheet = getSpreadsheet().getSheetByName('Podstawy prawne');
@@ -136,7 +138,7 @@ function getPodstawaPrawnaNumber(klucz) {
 
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return (h || '').toString().trim().toLowerCase(); });
   const keyCol = headers.indexOf('klucz') + 1;
-  const valueCol = headers.indexOf('wartość_liczbowa') + 1;
+  const valueCol = headers.indexOf('wartość') + 1;
   if (keyCol === 0 || valueCol === 0) return null;
 
   const keys = sheet.getRange(2, keyCol, lastRow - 1, 1).getValues();

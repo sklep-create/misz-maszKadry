@@ -253,6 +253,63 @@ function zainstalujAutomatycznyBackupArkusza() {
 }
 
 /**
+ * JEDNORAZOWY instalator: wstawia w wierszu 1 zakładki "Podstawy prawne"
+ * (kolumny I-N, obok nagłówków tabeli A-G) dwa "przyciski" - checkboxy, które
+ * po zaznaczeniu uruchamiają sprawdzAktualizacjePodstawPrawnych() /
+ * sprawdzNowelizacjeZAI() i same się odznaczają (patrz
+ * onEditPodstawyPrawne() w PodstawyPrawneService.gs). Uruchom RAZ z menu
+ * (⚙️ System Kadrowy → ⚖️ Podstawy prawne) - i za każdym razem po przebudowie
+ * tej zakładki (🔁 Przebuduj wybrany arkusz od nowa czyści też I1:N1).
+ */
+function zainstalujPrzyciskiPodstawPrawnych() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName('Podstawy prawne');
+
+  if (!sheet) {
+    ui.alert('❌ Brak zakładki "Podstawy prawne". Najpierw ją utwórz (⚙️ System Kadrowy → 🗄️ Baza danych).');
+    return;
+  }
+
+  sheet.getRange('I1').setValue('🔄 Sprawdź aktualizację ustaw →');
+  sheet.getRange('K1').setValue('🔍 Sugestie AI (Groq) →');
+  sheet.getRange('I1:L1')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('right')
+    .setVerticalAlignment('middle');
+
+  const checkboxRule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+  sheet.getRange('J1').setDataValidation(checkboxRule).setValue(false);
+  sheet.getRange('L1').setDataValidation(checkboxRule).setValue(false);
+
+  sheet.getRange('N1')
+    .setValue('⏳ Nie sprawdzano jeszcze.')
+    .setFontStyle('italic')
+    .setHorizontalAlignment('left');
+
+  sheet.setColumnWidth(9, 200);  // I
+  sheet.setColumnWidth(10, 40);  // J (checkbox)
+  sheet.setColumnWidth(11, 200); // K
+  sheet.setColumnWidth(12, 40);  // L (checkbox)
+  sheet.setColumnWidth(14, 320); // N (status)
+
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'onEditPodstawyPrawne') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('onEditPodstawyPrawne')
+    .forSpreadsheet(ss)
+    .onEdit()
+    .create();
+
+  const msg = '✅ Przyciski gotowe w "Podstawy prawne" (I1:L1). Zaznacz checkbox, żeby uruchomić.';
+  Logger.log(msg);
+  ui.alert(msg);
+}
+
+/**
  * ⚠️ NIEBEZPIECZNE - usuwa WSZYSTKIE zakładki w arkuszu (cały skoroszyt
  * zostaje pusty). Google Sheets nie pozwala usunąć ostatniej zakładki, więc
  * zostaje jedna pusta "Arkusz1" - potem użyj generatora (⚙️ System Kadrowy →

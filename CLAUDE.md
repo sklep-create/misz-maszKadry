@@ -80,3 +80,55 @@ To snapshoty na dzień pobrania - obie ustawy bywają nowelizowane (widoczne by�
 już nowsze nowelizacje Kodeksu pracy z 2025/2026, nieuwzględnione jeszcze w
 tekście jednolitym z lutego 2025), więc wartości w zakładce warto od czasu do
 czasu ręcznie zweryfikować na isap.sejm.gov.pl.
+
+## Przebudowa "Podstawy prawne" + automatyczne sprawdzanie (2026-09-17)
+
+Kolumny: `Wartość` jest teraz CELOWO samą liczbą (albo krótkim "20/26" przy
+dwóch wariantach) - jednostka/warunki poszły do osobnej kolumny `Jednostka` i
+do `Uwagi`. Usunięto `Wartość_liczbowa` (zbędna, skoro `Wartość` sama jest już
+liczbą) - `getPodstawaPrawnaNumber()` w `Config.gs` czyta teraz `Wartość` po
+dopasowaniu `Klucz`.
+
+Nowy panel w wierszu 1 (kolumny I-N, obok nagłówków A-G): dwa checkboxy
+działające jak przyciski - "🔄 Sprawdź aktualizację ustaw" (deterministyczne,
+przez `api.sejm.gov.pl`, bez AI - patrz `sprawdzAktualizacjePodstawPrawnych()`
+w `PodstawyPrawneService.gs`; jeśli znajdzie sygnały do sprawdzenia, ZAPISUJE
+kopię PDF-u aktualnego tekstu jednolitego na Dysku, folder "Kadry - Podstawy
+prawne (pobrane)") i "🔍 Sugestie AI (Groq)" (`sprawdzNowelizacjeZAI()`,
+WYŁĄCZNIE doradcze - ocenia same urzędowe tytuły nowelizacji, niczego nie
+zapisuje w tabeli). Instalacja przycisków: menu ⚙️ System Kadrowy → ⚖️ Podstawy
+prawne → 🔘 Zainstaluj przyciski (uruchom RAZ, i ponownie po każdej przebudowie
+tej zakładki - `buildSheetFromSchema()` czyści cały arkusz, więc kasuje też
+I1:L1).
+
+**Dlaczego AI tu NIE nadpisuje wartości** (pierwotny plan zakładał, że AI
+czyta PDF i nadpisuje bezpośrednio - porzucone po testach na żywo 2026-09-17):
+Gemini (`aistudio.google.com`) wymagał przedpłaty na koncie ("prepayment
+credits are depleted"), żeby klucz API w ogóle odpowiadał, mimo że ten sam
+klucz/model działał bez problemu w przeglądarkowym AI Studio Playground -
+najwyraźniej REST API i Playground mają osobne pule limitów, a darmowy klucz
+programistyczny w praktyce wymagał podpięcia karty. Użytkownik nie chciał
+podawać karty, więc przerzucono się na Groq (`console.groq.com/keys`,
+`Ustawienia!GROQ_API_KEY`, model `llama-3.3-70b-versatile` przez endpoint
+kompatybilny z OpenAI) - realnie darmowy, bez karty (30 zapytań/min, 14 400/
+dzień na poziomie organizacji). PROBLEM: Groq nie przyjmuje plików PDF
+(inline) ani nie ma wbudowanego wyszukiwania w sieci jak Gemini
+`google_search` - nie da się go więc "uziemić" w faktycznej treści ustawy.
+Zamiast ryzykować, że model zgaduje konkretne liczby z pamięci treningowej i
+nadpisuje dane bezpośrednio używane do wyliczania czasu pracy/wynagrodzeń,
+`sprawdzNowelizacjeZAI()` dostaje tylko dobrze ugruntowany, wąski fakt (same
+urzędowe tytuły nowelizacji, pobrane deterministycznie z `api.sejm.gov.pl`) i
+zwraca zwykły tekst z podpowiedzią co sprawdzić - nigdy JSON, nigdy zapis do
+komórek. Jeśli kiedyś pojawi się darmowe (bez przedpłaty) API z natywnym
+wsparciem PDF + wyszukiwaniem, można wrócić do automatycznego nadpisywania.
+
+Ważne, sprawdzone bezpośrednio w `api.sejm.gov.pl` przy budowie tej funkcji
+(2026-09-17): tekst jednolity ustawy o rehabilitacji zawodowej, na którym
+opiera się obecna tabela (Dz.U. 2025 poz. 913), ma tam status
+`"wygaśnięcie aktu"` / `inForce: "NOT_IN_FORCE"` z `expirationDate: 2026-07-01`
+- czyli już najprawdopodobniej istnieje nowszy tekst jednolity, którego ID nie
+udało się w prosty sposób wyprowadzić z samego API. Kodeks pracy (Dz.U. 2025
+poz. 277) wciąż formalnie obowiązuje, ale ma już 5 nowelizacji
+nieuwzględnionych w tym tekście jednolitym. Warto uruchomić "🔄 Sprawdź
+aktualizację ustaw" i ręcznie zweryfikować ustawę o rehabilitacji na
+isap.sejm.gov.pl zanim ktoś zaufa normie 7h/35h dla OzN w tej tabeli.

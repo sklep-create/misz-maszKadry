@@ -28,6 +28,7 @@ function getDatabaseSchema() {
         'GOOGLE_PLACE_ID',       // ID lokalizacji w Google Maps - też ten sam co na stronie.
         'APPS_SCRIPT_EDITOR_URL', // Link do edytora Apps Script (standalone projekt) - "Rozszerzenia → Apps Script" w arkuszu NIE otwiera tego projektu (patrz notatka o migracji w CLAUDE.md), więc link trzeba trzymać tutaj.
         'BACKUP_CO_DNI',          // co ile dni robić automatyczny backup arkusza; puste = domyślnie 7. Patrz wykonajBackupArkusza() w BackupService.gs.
+        'GROQ_API_KEY',           // klucz do darmowego API Groq (console.groq.com/keys, bez karty) - używany wyłącznie do "🔍 Sugestie AI (Groq)" w zakładce Podstawy prawne. Patrz PodstawyPrawneService.gs.
         'KOLOR_MARKA', // kolor bazowy (hex) - wpisywany ręcznie, reszta jest z niego wyliczana. Patrz wygenerujPaletKolorow() w PaletaKolorow.gs.
         'KOLOR_PRACA', // wyliczany automatycznie z KOLOR_MARKA (nie edytuj ręcznie - nadpisze go kolejne uruchomienie generatora palety).
         'KOLOR_UWAGA', // j.w. - wyliczany automatycznie.
@@ -38,13 +39,13 @@ function getDatabaseSchema() {
       // zawodowej: 7h/dzień ORAZ 35h/tydzień) - generator Grafiku pilnuje
       // obu naraz, nie tylko dobowego (patrz GrafikGeneratorService.gs).
       initialData: [
-        ['Moja Firma Sp. z o.o.', '', 8, 7, 35, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit', 7, '#2EA6FF', '#31C46C', '#FF5A5F', '#F2F2F2'],
-        ['', '', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '', '', '', '', '', '', '']
+        ['Moja Firma Sp. z o.o.', '', 8, 7, 35, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit', 7, '', '#2EA6FF', '#31C46C', '#FF5A5F', '#F2F2F2'],
+        ['', '', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '', '', '', '', '', '', '', '']
       ]
     },
     'Pracownicy': {
@@ -170,42 +171,56 @@ function getDatabaseSchema() {
     },
     'Podstawy prawne': {
       color: '#742A2A', // Bordowy - odróżnia od pozostałych zakładek operacyjnych
-      // Zakładka informacyjna (czytelna dla ludzi - Kategoria/Zagadnienie/
-      // Wartość/Podstawa prawna/Uwagi), ale DWIE ostatnie kolumny (Wartość_liczbowa
-      // + Klucz) SĄ czytane przez kod (patrz getPodstawaPrawnaNumber() w Config.gs) -
-      // to jedyny sposób, żeby liczby użyte w generowaniu Grafiku faktycznie
-      // pochodziły z tej tabeli, a nie tylko z opisu tekstowego. Wypełnione
+      // Zakładka czytelna dla ludzi, ale Wartość jest CELOWO samą liczbą (albo
+      // krótkim "liczba/liczba" przy dwóch wariantach) - opis/warunki/jednostka
+      // idą do Jednostka i Uwagi. Ostatnia kolumna (Klucz) JEST czytana przez
+      // kod (patrz getPodstawaPrawnaNumber() w Config.gs, czyta Wartość po
+      // dopasowaniu Klucza) - to jedyny sposób, żeby liczby użyte w
+      // generowaniu Grafiku faktycznie pochodziły z tej tabeli. Wypełniona
       // tylko przy wierszach, które generator faktycznie wykorzystuje - reszta
-      // zostaje czysto informacyjna (Klucz/Wartość_liczbowa puste).
+      // zostaje czysto informacyjna (Klucz puste).
+      //
+      // Wiersz 1 (kolumny I-N) to też mini-panel przycisków ("🔄 Sprawdź
+      // aktualizację ustaw" / "🔍 Sugestie AI (Groq)") - patrz
+      // zainstalujPrzyciskiPodstawPrawnych() w NarzedziaSerwisowe.gs i
+      // PodstawyPrawneService.gs. Instalacja przycisków NIE jest częścią tego
+      // schematu (przebudowa arkusza czyści też I1:N1) - uruchom instalator
+      // jeszcze raz po każdej przebudowie tej zakładki.
       //
       // Dane sprawdzone bezpośrednio w oficjalnych tekstach jednolitych
-      // pobranych do docs/prawo/:
+      // pobranych do docs/prawo/ (stan na wrzesień 2026):
       // - Kodeks_pracy_Dz.U.2025.277_tekst_jednolity.pdf (Dz.U. 2025 poz. 277)
       // - Ustawa_o_rehabilitacji_zawodowej_Dz.U.2025.913_tekst_jednolity.pdf (Dz.U. 2025 poz. 913)
-      // Uwaga: to snapshoty na dzień pobrania (wrzesień 2026) - Kodeks pracy i
-      // ustawa o rehabilitacji bywają nowelizowane, więc od czasu do czasu
-      // warto ręcznie zweryfikować i zaktualizować wartości (isap.sejm.gov.pl).
-      headers: ['Kategoria', 'Zagadnienie', 'Wartość', 'Podstawa prawna', 'Uwagi', 'Wartość_liczbowa', 'Klucz'],
+      // Obie ustawy bywają nowelizowane - stąd "🔄 Sprawdź aktualizację ustaw"
+      // (deterministyczne sprawdzenie przez api.sejm.gov.pl, bez AI - zapisuje
+      // też kopię PDF-u na Dysku, jeśli są sygnały do sprawdzenia) i
+      // "🔍 Sugestie AI (Groq)" (WYŁĄCZNIE doradcze - ocenia tytuły nowelizacji,
+      // nic nie zapisuje w tabeli; patrz nagłówek PodstawyPrawneService.gs po
+      // wyjaśnienie, czemu AI tu nie nadpisuje wartości bezpośrednio).
+      headers: ['Kategoria', 'Zagadnienie', 'Wartość', 'Jednostka', 'Podstawa prawna', 'Uwagi', 'Klucz'],
+      // Wartość (kolumna 3) wymuszona jako czysty tekst - inaczej Arkusze
+      // próbują sparsować "20/26" albo "100/50" jako datę wg lokalizacji.
+      textColumns: [3],
       initialData: [
-        ['Czas pracy (pełny etat)', 'Norma dobowa', '8 godzin/dobę', 'Art. 129 §1 KP', 'Podstawowy system czasu pracy', 8, 'NORMA_DOBOWA_ETAT'],
-        ['Czas pracy (pełny etat)', 'Norma tygodniowa', 'przeciętnie 40 godzin (przeciętny 5-dniowy tydzień)', 'Art. 129 §1 KP', 'Okres rozliczeniowy standardowo do 4 miesięcy', '', ''],
-        ['Czas pracy (pełny etat)', 'Odpoczynek dobowy', 'min. 11 godzin nieprzerwanego odpoczynku', 'Art. 132 §1 KP', '', '', ''],
-        ['Czas pracy (pełny etat)', 'Odpoczynek tygodniowy', 'min. 35 godzin nieprzerwanego odpoczynku (w tym min. 11h dobowego)', 'Art. 133 §1 KP', '', '', ''],
-        ['Czas pracy (pełny etat)', 'Przerwa w pracy', '15 min przy dobowym wymiarze ≥6h (wliczana do czasu pracy)', 'Art. 134 §1 pkt 1 KP', 'Kolejne 15 min przy >9h i >16h dobowego wymiaru', '', ''],
-        ['Nadgodziny', 'Tygodniowy limit z nadgodzinami', 'przeciętnie max 48 godzin/tydzień', 'Art. 131 §1 KP', '', '', ''],
-        ['Nadgodziny', 'Roczny limit nadgodzin', '150 godzin/rok kalendarzowy', 'Art. 151 §3 KP', 'Inny limit można ustalić w układzie zbiorowym/regulaminie/umowie (Art. 151 §4 KP)', '', ''],
-        ['Nadgodziny', 'Dodatek za nadgodziny', '100% (noc, niedziele/święta niebędące dniem pracy, dzień wolny w zamian) albo 50% (pozostałe przypadki)', 'Art. 151(1) §1 KP', '', '', ''],
-        ['Urlop wypoczynkowy', 'Wymiar urlopu', '20 dni (staż <10 lat) / 26 dni (staż ≥10 lat)', 'Art. 154 §1 KP', 'Do stażu wlicza się okresy nauki (Art. 155 KP)', '', ''],
-        ['Urlop wypoczynkowy', 'Przelicznik dnia urlopu', '1 dzień urlopu = 8 godzin pracy', 'Art. 154(2) §2 KP', '', '', ''],
-        ['Urlop wypoczynkowy', 'Ekwiwalent za niewykorzystany urlop', 'przysługuje przy rozwiązaniu/wygaśnięciu umowy', 'Art. 171 §1 KP', '', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Brak/Lekki stopień)', '8 godzin/dobę', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', 'Ta sama norma co przy pełnym etacie', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Brak/Lekki stopień)', '40 godzin/tydzień', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', '', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Umiarkowany/Znaczny stopień)', '7 godzin/dobę', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Używane bezpośrednio przez generator Grafiku', 7, 'NORMA_DOBOWA_OZN'],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Umiarkowany/Znaczny stopień)', '35 godzin/tydzień', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Używane bezpośrednio przez generator Grafiku', 35, 'NORMA_TYGODNIOWA_OZN'],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Zakaz nadgodzin i pracy nocnej', 'dotyczy KAŻDEGO stopnia niepełnosprawności (także Lekkiego)', 'Art. 15 ust. 3 ustawy o rehabilitacji zawodowej', 'Patrz canEmployeeHaveOvertime() w Config.gs', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowa przerwa', '15 minut (wliczana do czasu pracy)', 'Art. 17 ustawy o rehabilitacji zawodowej', '', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowy urlop wypoczynkowy', '10 dni roboczych/rok (tylko Umiarkowany/Znaczny stopień)', 'Art. 19 ust. 1 ustawy o rehabilitacji zawodowej', 'Prawo po 1 roku pracy od dnia zaliczenia do stopnia; nie przysługuje przy urlopie podstawowym >26 dni (Art. 19 ust. 2)', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Zwolnienie na turnus rehabilitacyjny', 'do 21 dni roboczych/rok, z zachowaniem wynagrodzenia', 'Art. 20 ust. 1 ustawy o rehabilitacji zawodowej', 'Łącznie z dodatkowym urlopem (wiersz wyżej) max 21 dni/rok (Art. 20 ust. 3)', '', '']
+        ['Czas pracy (pełny etat)', 'Norma dobowa', 8, 'godzin/dobę', 'Art. 129 §1 KP', 'Podstawowy system czasu pracy', 'NORMA_DOBOWA_ETAT'],
+        ['Czas pracy (pełny etat)', 'Norma tygodniowa', 40, 'godzin/tydzień (przeciętnie, przeciętny 5-dniowy tydzień)', 'Art. 129 §1 KP', 'Okres rozliczeniowy standardowo do 4 miesięcy', ''],
+        ['Czas pracy (pełny etat)', 'Odpoczynek dobowy', 11, 'godzin (min. nieprzerwanego odpoczynku)', 'Art. 132 §1 KP', '', ''],
+        ['Czas pracy (pełny etat)', 'Odpoczynek tygodniowy', 35, 'godzin (min., w tym min. 11h dobowego)', 'Art. 133 §1 KP', '', ''],
+        ['Czas pracy (pełny etat)', 'Przerwa w pracy', 15, 'min (przy dobowym wymiarze ≥6h, wliczana do czasu pracy)', 'Art. 134 §1 pkt 1 KP', 'Kolejne 15 min przy >9h i >16h dobowego wymiaru', ''],
+        ['Nadgodziny', 'Tygodniowy limit z nadgodzinami', 48, 'godzin/tydzień (przeciętnie, max)', 'Art. 131 §1 KP', '', ''],
+        ['Nadgodziny', 'Roczny limit nadgodzin', 150, 'godzin/rok kalendarzowy', 'Art. 151 §3 KP', 'Inny limit można ustalić w układzie zbiorowym/regulaminie/umowie (Art. 151 §4 KP)', ''],
+        ['Nadgodziny', 'Dodatek za nadgodziny', '100/50', '% (100 - noc, niedziele/święta niebędące dniem pracy, dzień wolny w zamian; 50 - pozostałe przypadki)', 'Art. 151(1) §1 KP', '', ''],
+        ['Urlop wypoczynkowy', 'Wymiar urlopu', '20/26', 'dni/rok (20 przy stażu <10 lat, 26 przy stażu ≥10 lat)', 'Art. 154 §1 KP', 'Do stażu wlicza się okresy nauki (Art. 155 KP)', ''],
+        ['Urlop wypoczynkowy', 'Przelicznik dnia urlopu', 8, 'godzin/dzień urlopu', 'Art. 154(2) §2 KP', '', ''],
+        ['Urlop wypoczynkowy', 'Ekwiwalent za niewykorzystany urlop', 'TAK', '(przysługuje przy rozwiązaniu/wygaśnięciu umowy)', 'Art. 171 §1 KP', '', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Brak/Lekki stopień)', 8, 'godzin/dobę', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', 'Ta sama norma co przy pełnym etacie', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Brak/Lekki stopień)', 40, 'godzin/tydzień', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', '', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Umiarkowany/Znaczny stopień)', 7, 'godzin/dobę', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Używane bezpośrednio przez generator Grafiku', 'NORMA_DOBOWA_OZN'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Umiarkowany/Znaczny stopień)', 35, 'godzin/tydzień', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Używane bezpośrednio przez generator Grafiku', 'NORMA_TYGODNIOWA_OZN'],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Zakaz nadgodzin i pracy nocnej', 'TAK', '(dotyczy KAŻDEGO stopnia niepełnosprawności, także Lekkiego)', 'Art. 15 ust. 3 ustawy o rehabilitacji zawodowej', 'Patrz canEmployeeHaveOvertime() w Config.gs', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowa przerwa', 15, 'min (wliczana do czasu pracy)', 'Art. 17 ustawy o rehabilitacji zawodowej', '', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowy urlop wypoczynkowy', 10, 'dni roboczych/rok (tylko Umiarkowany/Znaczny stopień)', 'Art. 19 ust. 1 ustawy o rehabilitacji zawodowej', 'Prawo po 1 roku pracy od dnia zaliczenia do stopnia; nie przysługuje przy urlopie podstawowym >26 dni (Art. 19 ust. 2)', ''],
+        ['Pracownicy z niepełnosprawnością (OzN)', 'Zwolnienie na turnus rehabilitacyjny', 21, 'dni roboczych/rok, z zachowaniem wynagrodzenia (max)', 'Art. 20 ust. 1 ustawy o rehabilitacji zawodowej', 'Łącznie z dodatkowym urlopem (wiersz wyżej) max 21 dni/rok (Art. 20 ust. 3)', '']
       ]
     }
   };

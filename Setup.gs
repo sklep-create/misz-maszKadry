@@ -56,6 +56,11 @@ function onOpen() {
   const appearanceMenu = ui.createMenu('🎨 Wygląd')
     .addItem('🎨 Wygeneruj paletę kolorów z KOLOR_MARKA', 'wygenerujPaletKolorow');
 
+  const legalBasisMenu = ui.createMenu('⚖️ Podstawy prawne')
+    .addItem('🔄 Sprawdź aktualizację ustaw', 'sprawdzAktualizacjePodstawPrawnych')
+    .addItem('🔍 Sugestie AI, co sprawdzić (Groq)', 'sprawdzNowelizacjeZAI')
+    .addItem('🔘 Zainstaluj przyciski w arkuszu (raz)', 'zainstalujPrzyciskiPodstawPrawnych');
+
   ui.createMenu('⚙️ System Kadrowy')
     .addSubMenu(setupMenu)
     .addSubMenu(databaseMenu)
@@ -64,6 +69,7 @@ function onOpen() {
     .addSubMenu(daysOffMenu)
     .addSubMenu(backupMenu)
     .addSubMenu(appearanceMenu)
+    .addSubMenu(legalBasisMenu)
     .addSeparator()
     .addItem('👔 Ustaw Telegram ID Pracodawców', 'setEmployerTelegramIds')
     .addItem('🔔 Uruchom sprawdzanie braku START', 'checkMissingStartLogs')
