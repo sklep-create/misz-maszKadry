@@ -118,20 +118,69 @@ function getCompanyLogoUrl() {
   return manual || getTelegramBotPhotoDataUri();
 }
 
-/** Dobowa norma godzin dla pracownika UoP (kolumna NORMA_ETAT_UOP), domyślnie 8. */
+/**
+ * Szuka w arkuszu "Podstawy prawne" wiersza o podanym Kluczu (ostatnia
+ * kolumna) i zwraca jego Wartość_liczbową (przedostatnia kolumna) jako
+ * liczbę - albo null, jeśli arkusz nie istnieje albo klucz nie został
+ * znaleziony/wypełniony. To jedyny sposób, żeby normy godzin użyte w
+ * generatorze Grafiku faktycznie pochodziły z tabeli podstaw prawnych
+ * (Config.gs), a nie tylko z jej opisu tekstowego dla ludzi.
+ */
+function getPodstawaPrawnaNumber(klucz) {
+  const sheet = getSpreadsheet().getSheetByName('Podstawy prawne');
+  if (!sheet) return null;
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 2) return null;
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return (h || '').toString().trim().toLowerCase(); });
+  const keyCol = headers.indexOf('klucz') + 1;
+  const valueCol = headers.indexOf('wartość_liczbowa') + 1;
+  if (keyCol === 0 || valueCol === 0) return null;
+
+  const keys = sheet.getRange(2, keyCol, lastRow - 1, 1).getValues();
+  for (let i = 0; i < keys.length; i++) {
+    if ((keys[i][0] || '').toString().trim() === klucz) {
+      const value = Number(sheet.getRange(2 + i, valueCol).getValue());
+      return value > 0 ? value : null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Dobowa norma godzin dla pracownika UoP, domyślnie 8. Priorytet: "Podstawy
+ * prawne" (Klucz NORMA_DOBOWA_ETAT) -> Ustawienia!NORMA_ETAT_UOP (ręczny
+ * override/starsze arkusze bez zakładki Podstawy prawne) -> domyślne 8.
+ */
 function getNormaEtatUop() {
+  const fromLaw = getPodstawaPrawnaNumber('NORMA_DOBOWA_ETAT');
+  if (fromLaw) return fromLaw;
   const value = Number(getSettingValue('NORMA_ETAT_UOP'));
   return value > 0 ? value : 8;
 }
 
-/** Dobowa norma godzin dla pracownika OzN (kolumna NORMA_OZN_UOP), domyślnie 7. */
+/**
+ * Dobowa norma godzin dla pracownika OzN (Umiarkowany/Znaczny), domyślnie 7.
+ * Priorytet: "Podstawy prawne" (Klucz NORMA_DOBOWA_OZN) ->
+ * Ustawienia!NORMA_OZN_UOP -> domyślne 7.
+ */
 function getNormaOznUop() {
+  const fromLaw = getPodstawaPrawnaNumber('NORMA_DOBOWA_OZN');
+  if (fromLaw) return fromLaw;
   const value = Number(getSettingValue('NORMA_OZN_UOP'));
   return value > 0 ? value : 7;
 }
 
-/** Tygodniowa norma godzin dla pracownika OzN (kolumna NORMA_OZN_TYGODNIOWA_UOP), domyślnie 35. */
+/**
+ * Tygodniowa norma godzin dla pracownika OzN (Umiarkowany/Znaczny), domyślnie
+ * 35. Priorytet: "Podstawy prawne" (Klucz NORMA_TYGODNIOWA_OZN) ->
+ * Ustawienia!NORMA_OZN_TYGODNIOWA_UOP -> domyślne 35.
+ */
 function getNormaOznTygodniowa() {
+  const fromLaw = getPodstawaPrawnaNumber('NORMA_TYGODNIOWA_OZN');
+  if (fromLaw) return fromLaw;
   const value = Number(getSettingValue('NORMA_OZN_TYGODNIOWA_UOP'));
   return value > 0 ? value : 35;
 }
