@@ -6,6 +6,12 @@ const TELEGRAM_RECENT_UPDATE_LIMIT = 50;
 
 function doPost(e) {
   try {
+    const providedSecret = e && e.parameter && e.parameter.secret;
+    if (providedSecret !== getOrCreateTelegramWebhookSecret()) {
+      Logger.log("doPost: odrzucono - brak/zły sekret webhooka (żądanie spoza Telegrama).");
+      return ContentService.createTextOutput("OK");
+    }
+
     Logger.log("doPost: otrzymano POST od: " +
       (e && e.parameter && e.parameter['user-agent'] ? e.parameter['user-agent'] : "nieznane źródło"));
     const update = JSON.parse(e.postData.contents);
@@ -94,12 +100,17 @@ function handleMessage(msg) {
           );
         }
       }
-    } else {
+    } else if (auth.employeeId) {
+      // Już zarejestrowany (przeszedł przez /start), ale jeszcze nieautoryzowany - pomocna instrukcja.
       sendTelegramMessage(
         chatId,
         "🔐 INSTRUKCJA LOGOWANIA\nAby się zalogować, kliknij przycisk poniżej i podaj PIN, który otrzymałeś od Pracodawcy.",
         getPinKeyboard()
       );
+    } else {
+      // Całkiem nieznany nadawca, nie wysłał nawet /start - ignorujemy po cichu
+      // (ochrona przed spamem: bot nie odpowiada automatycznie obcym).
+      Logger.log("doPost: zignorowano wiadomość od nieznanego chatId=" + chatId + " (brak /start).");
     }
     return;
   }

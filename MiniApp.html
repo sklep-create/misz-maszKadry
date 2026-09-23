@@ -394,6 +394,21 @@
 
           callApi("getAvailabilityData", requestParams)
             .then(function (result) {
+              const availTabBtn = document.querySelector('.tab-btn[data-tab="dyspozycyjnosc"]');
+
+              if (result && result.ok && result.enabled === false) {
+                if (availTabBtn) availTabBtn.style.display = "none";
+                const availTabContent = document.getElementById("tab-dyspozycyjnosc");
+                if (availTabContent && availTabContent.classList.contains("active") && availTabBtn) {
+                  availTabContent.classList.remove("active");
+                  availTabBtn.classList.remove("active");
+                  document.getElementById("tab-historia").classList.add("active");
+                  document.querySelector('.tab-btn[data-tab="historia"]').classList.add("active");
+                }
+                return;
+              }
+              if (availTabBtn) availTabBtn.style.display = "";
+
               if (!result || !result.ok) {
                 availCounter.textContent = "⚠️ " + ((result && result.error) || "Nie udało się pobrać danych.");
                 availCounter.className = "status-badge idle";

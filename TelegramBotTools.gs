@@ -193,9 +193,12 @@ function telegramGetWebhookInfo(silent) {
 function telegramSetWebhookNow() {
   try {
     const webhookUrl = getEffectiveTelegramWebhookUrl(); // przy braku URL rzuci wyjątek z instrukcją
-    const result = _botApi("setWebhook", { url: webhookUrl });
+    const secret = getOrCreateTelegramWebhookSecret();
+    const result = _botApi("setWebhook", { url: webhookUrl, secret_token: secret });
     if (result.ok) {
-      return _reportResult("✅ Webhook ustawiony:\n" + webhookUrl + "\n\n" + telegramGetWebhookInfo(true));
+      return _reportResult("✅ Webhook ustawiony:\n" + webhookUrl +
+        "\n\n🔑 Sekret webhooka (wklej do stałej TELEGRAM_WEBHOOK_SECRET w Cloudflare Workerze):\n" + secret +
+        "\n\n" + telegramGetWebhookInfo(true));
     }
     return _reportResult("❌ setWebhook failed:\n" + JSON.stringify(result));
   } catch (err) {
@@ -256,7 +259,7 @@ function telegramFlushUpdates() {
   try {
     const info = _botApi("getWebhookInfo");
     const currentUrl = info.ok ? info.result.url : "";
-    const result = _botApi("setWebhook", { url: currentUrl, drop_pending_updates: true });
+    const result = _botApi("setWebhook", { url: currentUrl, drop_pending_updates: true, secret_token: getOrCreateTelegramWebhookSecret() });
     if (result.ok) {
       return _reportResult("✅ Kolejka pendnych update'ow wyczyszczona.\nWebhook pozostał: " + currentUrl);
     }

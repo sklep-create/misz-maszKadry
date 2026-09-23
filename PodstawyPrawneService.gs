@@ -252,22 +252,9 @@ function _zapiszPdfNaDysku(nazwaUstawy, parts, base64) {
 
 // --- Pomocnicze: arkusz --------------------------------------------------
 
+/** Deleguje do _scanPodstawyPrawneBlocks() w Config.gs - patrz tam po wyjaśnienie, czemu czytanie jest teraz niezależne od pozycji kolumn/liczby bloków w zakładce. */
 function _readPodstawyPrawneRows(sheet) {
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-  const values = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
-  return values.map(function (row, i) {
-    return {
-      rowIndex: i + 2,
-      kategoria: row[0],
-      zagadnienie: row[1],
-      wartosc: row[2],
-      jednostka: row[3],
-      podstawaPrawna: row[4],
-      uwagi: row[5],
-      klucz: (row[6] || '').toString().trim()
-    };
-  });
+  return _scanPodstawyPrawneBlocks(sheet);
 }
 
 function _ustawStatusPodstawPrawne(sheet, text) {

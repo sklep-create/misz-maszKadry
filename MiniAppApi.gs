@@ -135,6 +135,10 @@ function getAvailabilityData(params) {
       };
     }
 
+    if (!isDyspozycyjnoscEnabled()) {
+      return { ok: true, enabled: false };
+    }
+
     const months = getSelectableAvailabilityMonths(3);
     const requestedMonth = ((params.month || "") + "").trim();
     const monthValue = months.some(function (m) { return m.value === requestedMonth; })
@@ -154,6 +158,7 @@ function getAvailabilityData(params) {
 
     return {
       ok: true,
+      enabled: true,
       months: months,
       selectedMonth: monthValue,
       limit: getAvailabilityLimit(auth.employeeId, year, month),
@@ -187,6 +192,10 @@ function submitAvailability(params) {
         ok: false,
         error: "Musisz najpierw dokończyć autoryzację PIN w bocie Telegram."
       };
+    }
+
+    if (!isDyspozycyjnoscEnabled()) {
+      return { ok: false, error: "Zgłaszanie dyspozycyjności jest obecnie wyłączone przez pracodawcę." };
     }
 
     const days = daysParam ? daysParam.split(",") : [];

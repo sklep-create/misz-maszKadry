@@ -11,15 +11,16 @@ function getEmployeesForEmployer() {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
+  const col = getEmployeesColumnMap(sheet);
   const employees = [];
 
   for (let i = 1; i < data.length; i++) {
-    const employeeId = (data[i][0] || "").toString();
+    const employeeId = (data[i][col['ID_Pracownika']] || "").toString();
     if (!employeeId) continue;
 
     employees.push({
       employeeId: employeeId,
-      fullName: data[i][2] || employeeId
+      fullName: data[i][col['Imie_Nazwisko']] || employeeId
     });
   }
 

@@ -8,14 +8,17 @@ function onOpen() {
   const setupMenu = ui.createMenu('🔐 Pierwsze uruchomienie')
     .addItem('🔐 Inicjalizuj sekretne dane (token bota)', 'initializeSecrets')
     .addItem('🗂️ Zapamiętaj ID tego Arkusza (wymagane dla bota)', 'setSpreadsheetId')
-    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus');
+    .addItem('🔍 Status konfiguracji', 'checkSecretsStatus')
+    .addItem('🔍 Sprawdź zainstalowane automatyzacje (backup, grafik, ...)', 'pokazZainstalowaneAutomatyzacje');
 
   const databaseMenu = ui.createMenu('🗄️ Baza danych (arkusze)')
     .addItem('🚀 Wygeneruj całą bazę danych od nowa', 'setupDatabaseStructure')
     .addItem('🔁 Przebuduj wybrany arkusz od nowa', 'showRebuildSheetDialog')
     .addItem('📋 Wstaw przykładowe dane (tylko otwarty arkusz)', 'insertSampleDataIntoActiveSheet')
     .addItem('➕ Dodaj brakujące kolumny do Ustawień (bezpieczne)', 'ensureSettingsColumnsExist')
-    .addItem('➕ Dodaj brakujące kolumny do Pracowników (bezpieczne)', 'ensureEmployeeColumnsExist');
+    .addItem('➕ Dodaj brakujące kolumny do Pracowników (bezpieczne)', 'ensureEmployeeColumnsExist')
+    .addItem('🔢 Przelicz Suma_Urlopów wszystkich pracowników (ręcznie)', 'przeliczSumeUrlopowWszystkichPracownikow')
+    .addItem('⏰ Zainstaluj automatyczne przeliczanie Suma_Urlopów (raz)', 'zainstalujAutomatycznePrzeliczanieSumyUrlopow');
 
   const webhookMenu = ui.createMenu('🔗 Telegram: Webhook i wdrożenie')
     .addItem('🔗 Skonfiguruj Telegram Webhook', 'setupTelegramWebhook')
@@ -39,8 +42,11 @@ function onOpen() {
   const grafikMenu = ui.createMenu('🗓️ Grafik')
     .addItem('⏰ Zainstaluj automatyczne generowanie (raz)', 'zainstalujAutomatyczneGenerowanieGrafiku')
     .addItem('🔁 Wygeneruj następny okres teraz (ręcznie/test)', 'generateGrafikNowForced')
+    .addItem('📜 Wygeneruj historię (2 mies. wstecz) + aktualny + kolejny', 'generateGrafikHistoryAndUpcomingFromMenu')
+    .addItem('⏰ Zainstaluj automatyczną regenerację "Urlop na żądanie" (raz)', 'zainstalujAutomatycznaRegeneracjeUrlopuNaZadanie')
     .addItem('⚖️ Sprawdź równowagę zmian weekendowych', 'showWeekendFairnessReport')
-    .addItem('🖨️ Wygeneruj zbiorczy grafik PDF (do druku)', 'generujGrafikZbiorczyPdf');
+    .addItem('🛌 Sprawdź odpoczynek dobowy/tygodniowy (11h/35h)', 'checkWeeklyRestCompliance')
+    .addItem('🖨️ Wygeneruj zbiorczy grafik za okres PDF', 'showGrafikPdfPeriodDialog');
 
   const daysOffMenu = ui.createMenu('📅 Dni wolne')
     .addItem('🔄 Odśwież listę dni wolnych (poprzedni/obecny/kolejny rok)', 'refreshDniWolneSheet')
@@ -116,12 +122,9 @@ function setWebhookDeploymentId() {
     // Zapisz URL w Properties Service
     PropertiesService.getScriptProperties().setProperty('WEBHOOK_DEPLOYMENT_URL', deploymentUrl);
     
-    // Zaktualizuj kolumnę WEBHOOK_URL w arkuszu Ustawienia (jeśli istnieje)
+    // Zaktualizuj ustawienie WEBHOOK_URL w arkuszu Ustawienia (jeśli istnieje)
     try {
-      const col = getSettingsColumnIndex('WEBHOOK_URL');
-      if (col !== -1) {
-        getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS).getRange(2, col).setValue(deploymentUrl);
-      }
+      setSettingValue('WEBHOOK_URL', deploymentUrl);
     } catch (err) {
       Logger.log('Uwaga: Nie udało się zaktualizować arkusza: ' + err.toString());
     }
@@ -203,10 +206,10 @@ function setEmployerTelegramIds() {
   }
   
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
-  const col = getSettingsColumnIndex('PRACODAWCY_TELEGRAM_IDS');
+  const header = _findHeaderCell(sheet, 'PRACODAWCY_TELEGRAM_IDS');
 
-  if (col === -1) {
-    ui.alert('❌ Nie znaleziono kolumny "PRACODAWCY_TELEGRAM_IDS" w arkuszu Ustawienia.');
+  if (!header) {
+    ui.alert('❌ Nie znaleziono nagłówka "PRACODAWCY_TELEGRAM_IDS" w arkuszu Ustawienia.');
     return;
   }
 
@@ -214,11 +217,26 @@ function setEmployerTelegramIds() {
   const mergedIds = Array.from(new Set(existingIds.concat(ids)));
   const addedCount = mergedIds.length - existingIds.length;
 
+  // "PRACODAWCY_TELEGRAM_IDS" dzieli dziś kolumnę z kolejnym pasmem niżej
+  // (np. "KOLOR_PRACA" - patrz getDatabaseSchema() w DatabaseSetup.gs), więc
+  // NIE można czyścić "do końca arkusza" jak wcześniej (skasowałoby też ten
+  // kolejny blok). Czyścimy więc tylko istniejące ID, zatrzymując się na
+  // pierwszym pustym wierszu pod nagłówkiem - ten sam mechanizm co
+  // getWeeklyWorkingHours()/setWeeklyWorkingHours() (Config.gs).
   const currentLastRow = sheet.getLastRow();
-  if (currentLastRow >= 2) {
-    sheet.getRange(2, col, currentLastRow - 1, 1).clearContent();
+  const maxRowCount = currentLastRow - header.row;
+  let existingRowCount = 0;
+  if (maxRowCount >= 1) {
+    const existingColumn = sheet.getRange(header.row + 1, header.col, maxRowCount, 1).getValues();
+    for (let i = 0; i < existingColumn.length; i++) {
+      if ((existingColumn[i][0] || '').toString().trim() === '') break;
+      existingRowCount++;
+    }
   }
-  sheet.getRange(2, col, mergedIds.length, 1).setValues(mergedIds.map(function (id) { return [id]; }));
+  if (existingRowCount >= 1) {
+    sheet.getRange(header.row + 1, header.col, existingRowCount, 1).clearContent();
+  }
+  sheet.getRange(header.row + 1, header.col, mergedIds.length, 1).setValues(mergedIds.map(function (id) { return [id]; }));
 
   ui.alert(`✅ Zapisano ${mergedIds.length} ID pracodawców (dodano ${addedCount} nowych).`);
 }

@@ -118,6 +118,66 @@ function sprawdzWszystkieUprawnienia() {
 }
 
 /**
+ * Wszystkie automatyzacje tego projektu mają WSPÓLNĄ cechę: samo wpisanie
+ * wartości w Ustawieniach (np. BACKUP_CO_DNI) NICZEGO nie uruchamia - to
+ * tylko liczba, którą odczytuje jednorazowy instalator (np.
+ * zainstalujAutomatycznyBackupArkusza()) W MOMENCIE URUCHOMIENIA i "zapieka"
+ * w triggerze czasowym. Dopóki instalator nie zostanie kliknięty w menu ANI
+ * RAZU, żaden backup/generowanie grafiku/odświeżanie dni wolnych NIE
+ * dzieje się samo - i jeśli zmienisz liczbę PO instalacji, stary trigger
+ * dalej działa ze STARYM interwałem, dopóki nie klikniesz instalatora
+ * jeszcze raz (każdy instalator najpierw usuwa swój poprzedni trigger, więc
+ * ponowne kliknięcie jest bezpieczne, nie tworzy duplikatów).
+ *
+ * Ta funkcja pokazuje, co NAPRAWDĘ jest zainstalowane w projekcie TERAZ
+ * (ScriptApp.getProjectTriggers()) - jedyny wiarygodny sposób, żeby
+ * odpowiedzieć na pytanie "czy X działa automatycznie", zamiast zgadywać po
+ * samej wartości w Ustawieniach. Apps Script NIE udostępnia w API dokładnego
+ * interwału zapisanego w triggerze (np. "co 7 dni") - tylko czy trigger
+ * istnieje i jakiego jest typu, dlatego obok pokazywana jest AKTUALNA
+ * wartość z Ustawień, żeby ocenić, czy trigger mógł "wystrzelić" z innym
+ * interwałem niż ten, co teraz widać w arkuszu.
+ */
+function pokazZainstalowaneAutomatyzacje() {
+  const known = [
+    { handler: 'checkAndGenerateGrafikIfDue', opis: 'Generowanie Grafiku (sprawdzanie codziennie ~6:00, generacja tylko co DNI_GRAFIKU dni - gdy dziś = start kolejnego okresu minus 5 dni)' },
+    { handler: 'onEditWnioski', opis: 'Auto-regeneracja po "Urlop na żądanie"' },
+    { handler: 'onEditPracownicy', opis: 'Auto-przeliczanie Suma_Urlopów' },
+    { handler: 'refreshDniWolneSheet', opis: 'Odświeżanie "Dni wolne" (comiesięcznie)' },
+    { handler: 'wykonajBackupArkusza', opis: 'Backup arkusza (co Ustawienia!BACKUP_CO_DNI dni, ~3:00)' },
+    { handler: 'pullHoursFromPublicPlacesApi', opis: 'Pobieranie godzin z Google Wizytówki (codziennie, ~5:00)' },
+    { handler: 'onEditPodstawyPrawne', opis: 'Przyciski "Podstawy prawne"' },
+    { handler: 'onOpen', opis: 'Menu "⚙️ System Kadrowy" po otwarciu arkusza' }
+  ];
+
+  const installed = {};
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    const handler = t.getHandlerFunction();
+    installed[handler] = (installed[handler] || 0) + 1;
+  });
+
+  const lines = known.map(function (k) {
+    const count = installed[k.handler] || 0;
+    const status = count === 0 ? '❌ NIEZAINSTALOWANY' : (count === 1 ? '✅ zainstalowany' : ('⚠️ ' + count + '× - ZDUPLIKOWANY, zainstaluj ponownie z menu'));
+    return status + '  —  ' + k.opis + '  (' + k.handler + ')';
+  });
+
+  const backupCoDni = getSettingValue('BACKUP_CO_DNI');
+  lines.push('');
+  lines.push('ℹ️ Ustawienia!BACKUP_CO_DNI teraz = ' + (backupCoDni || '(puste, domyślnie 7)') +
+    ' - jeśli zmieniłeś tę wartość PO instalacji backupu, kliknij ponownie "⏰ Zainstaluj automatyczny backup", żeby trigger użył nowej liczby.');
+
+  const summary = lines.join('\n');
+  Logger.log(summary);
+  try {
+    SpreadsheetApp.getUi().alert('🔍 Zainstalowane automatyzacje', summary, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return summary;
+}
+
+/**
  * Pokazuje surowe dane zdjęcia profilowego bota Telegram (getChat) - do
  * diagnozy, czemu logo w Mini App się nie pokazuje (np. bot może po prostu
  * nie mieć ustawionego zdjęcia - BotFather → /setuserpic). Czyści też cache
@@ -185,6 +245,68 @@ function zainstalujAutomatyczneGenerowanieGrafiku() {
     .create();
 
   const msg = '✅ Zainstalowano automatyczne generowanie grafiku (codzienne sprawdzanie o ok. 6:00).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
+ * JEDNORAZOWY instalator: włącza automatyczną, natychmiastową regenerację
+ * Grafiku po zatwierdzeniu wniosku typu "Urlop na żądanie" (patrz
+ * onEditWnioski() w GrafikGeneratorService.gs - WYŁĄCZNIE ten jeden typ
+ * wniosku, bo tylko on z definicji (Art. 167(2) KP) wymaga natychmiastowej
+ * reakcji, nie może czekać na ręczne odpalenie generatora). Uruchom RAZ z
+ * menu (⚙️ System Kadrowy → 🗓️ Grafik).
+ */
+function zainstalujAutomatycznaRegeneracjeUrlopuNaZadanie() {
+  const ss = getSpreadsheet();
+
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'onEditWnioski') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('onEditWnioski')
+    .forSpreadsheet(ss)
+    .onEdit()
+    .create();
+
+  const msg = '✅ Zainstalowano automatyczną regenerację grafiku po zatwierdzeniu "Urlop na żądanie" w Wnioskach.';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
+ * JEDNORAZOWY instalator: włącza automatyczne przeliczanie Suma_Urlopów
+ * (Pracownicy) przy KAŻDEJ ręcznej zmianie Stopien_OZN albo Staz_Pracy_Lata
+ * (patrz onEditPracownicy() w AvailabilityService.gs). Uruchom RAZ z menu
+ * (⚙️ System Kadrowy → 🗄️ Baza danych).
+ */
+function zainstalujAutomatycznePrzeliczanieSumyUrlopow() {
+  const ss = getSpreadsheet();
+
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'onEditPracownicy') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('onEditPracownicy')
+    .forSpreadsheet(ss)
+    .onEdit()
+    .create();
+
+  const msg = '✅ Zainstalowano automatyczne przeliczanie Suma_Urlopów przy zmianie Stopien_OZN/Staz_Pracy_Lata.';
   Logger.log(msg);
   try {
     SpreadsheetApp.getUi().alert(msg);

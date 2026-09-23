@@ -12,48 +12,146 @@ function getDatabaseSchema() {
   return {
     'Ustawienia': {
       color: '#4A5568', // Ciemnoszary
-      // Układ kolumnowy: nagłówek = nazwa ustawienia, wartości pod spodem.
-      // NAZWA_FIRMY/logo/normy/miesiąc/webhook/NADGODZINY mają jedną wartość
-      // (wiersz 2). PRACODAWCY_TELEGRAM_IDS i dni/godziny pracy mają po
-      // jednej wartości na wiersz (rosnąco w dół), niezależnie od
-      // pozostałych kolumn.
-      headers: [
-        'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP', 'NORMA_OZN_TYGODNIOWA_UOP',
-        'MIESIAC_GRAFIKU', 'WEBHOOK_URL', 'PRACODAWCY_TELEGRAM_IDS',
-        'dni pracy', 'godziny pracy',
-        'NADGODZINY', // TAK/NIE - globalna zgoda firmy na nadgodziny (patrz isOvertimeAllowed() w Config.gs). OzN nigdy nie ma nadgodzin, niezależnie od tej wartości.
-        'DNI_GRAFIKU',           // liczba dni okresu grafiku (np. 14, 20); puste = cały kalendarzowy miesiąc. Patrz getNextGrafikPeriod() w GrafikGeneratorService.gs.
-        'OSTATNI_DZIEN_GRAFIKU', // YYYY-MM-DD ostatniego dnia już wygenerowanego okresu - ustawiane automatycznie, nie edytuj ręcznie.
-        'GOOGLE_PLACES_API_KEY', // klucz do publicznego Places API (New) - ten sam, którego używa strona misz-masz.cc do pokazywania godzin na żywo.
-        'GOOGLE_PLACE_ID',       // ID lokalizacji w Google Maps - też ten sam co na stronie.
-        'APPS_SCRIPT_EDITOR_URL', // Link do edytora Apps Script (standalone projekt) - "Rozszerzenia → Apps Script" w arkuszu NIE otwiera tego projektu (patrz notatka o migracji w CLAUDE.md), więc link trzeba trzymać tutaj.
-        'BACKUP_CO_DNI',          // co ile dni robić automatyczny backup arkusza; puste = domyślnie 7. Patrz wykonajBackupArkusza() w BackupService.gs.
-        'GROQ_API_KEY',           // klucz do darmowego API Groq (console.groq.com/keys, bez karty) - używany wyłącznie do "🔍 Sugestie AI (Groq)" w zakładce Podstawy prawne. Patrz PodstawyPrawneService.gs.
-        'KOLOR_MARKA', // kolor bazowy (hex) - wpisywany ręcznie, reszta jest z niego wyliczana. Patrz wygenerujPaletKolorow() w PaletaKolorow.gs.
-        'KOLOR_PRACA', // wyliczany automatycznie z KOLOR_MARKA (nie edytuj ręcznie - nadpisze go kolejne uruchomienie generatora palety).
-        'KOLOR_UWAGA', // j.w. - wyliczany automatycznie.
-        'KOLOR_TLO'    // j.w. - wyliczany automatycznie (jasny, stonowany neutralny odcień).
-      ],
-      // NORMA_OZN_UOP (dobowa) i NORMA_OZN_TYGODNIOWA_UOP (tygodniowa) to
-      // DWA NIEZALEŻNE limity dla OzN (Art. 15 ustawy o rehabilitacji
-      // zawodowej: 7h/dzień ORAZ 35h/tydzień) - generator Grafiku pilnuje
-      // obu naraz, nie tylko dobowego (patrz GrafikGeneratorService.gs).
-      initialData: [
-        ['Moja Firma Sp. z o.o.', '', 8, 7, 35, '2026-10', '', '', 'Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit', 7, '', '#2EA6FF', '#31C46C', '#FF5A5F', '#F2F2F2'],
-        ['', '', '', '', '', '', '', '', 'Wtorek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Środa', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Czwartek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Piątek', '8.00 - 16.00', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Sobota', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', '', 'Niedziela', '', '', '', '', '', '', '', '', '', '', '', '', '']
+      // Przebudowane 2026-09-17/18 z JEDNEGO wiersza z 22 kolumnami na 7
+      // tytułowanych mini-tabel jedna pod drugą - a POTEM (2026-09-22)
+      // użytkownik ręcznie przełożył to na 3 SZEROKIE pasma BEZ kolorowych
+      // tytułów (`noTitle: true` w buildBlockGridSheet()), po jednym na
+      // wiersz nagłówka + jeden wiersz wartości pod spodem, żeby mieć
+      // wszystko widoczne bez przewijania w pionie. Kod dogoniony pod tę
+      // żywą wersję arkusza (potwierdzone odczytem pliku przez Google Drive,
+      // nie tylko ze zrzutu ekranu - zrzut ucinał kolumny poza K).
+      //
+      // Przy okazji ZNIKNĘŁA kolumna NORMA_OZN_TYGODNIOWA_UOP (ręczny
+      // override tygodniowej normy OzN) - bezpieczne, bo
+      // getNormaOznTygodniowa() (Config.gs) i tak ma priorytet Podstawy
+      // prawne (Klucz NORMA_TYGODNIOWA_OZN, wypełniony) -> dopiero
+      // Ustawienia -> domyślne 35; _findHeaderCell() zwraca po prostu null,
+      // gdy nagłówka nie ma w arkuszu, więc funkcja spada na Podstawy prawne
+      // bez błędu. Jeśli ktoś kiedyś doda tę kolumnę ręcznie z powrotem,
+      // odczyt zadziała bez zmian w kodzie (patrz niżej).
+      //
+      // Doszła za to kolumna GEMINI_API_KEY - MARTWA (nieużywana przez
+      // żaden kod, patrz sekcja "Przebudowa Podstawy prawne..." w CLAUDE.md
+      // o porzuceniu Gemini na rzecz Groq) - zostawiona jako pole w
+      // arkuszu, bez odczytu w kodzie.
+      //
+      // WAŻNE przy dalszej edycji: getSettingValue()/setSettingValue()
+      // (Config.gs) i getWeeklyWorkingHours()/setWeeklyWorkingHours()
+      // (Config.gs)/getEmployerTelegramIds() (AuthService.gs)/
+      // setEmployerTelegramIds() (Setup.gs) czytają PRZEZ _findHeaderCell()
+      // (Config.gs) - szuka nagłówka o dokładnie takim tekście GDZIEKOLWIEK
+      // w arkuszu (nie tylko w wierszu 1) i zwraca {row, col}; wartość leży
+      // zawsze w wierszu BEZPOŚREDNIO pod nagłówkiem, w tej samej kolumnie.
+      // Dzięki temu bloki można dowolnie przestawiać/dodawać bez zmian w
+      // kodzie odczytu - TYLKO setEmployerTelegramIds() (Setup.gs) ma dziś
+      // wyjątek: musi się zatrzymywać na pierwszym pustym wierszu (jak
+      // getWeeklyWorkingHours()), bo "PRACODAWCY_TELEGRAM_IDS" dzieli teraz
+      // kolumnę (G) z kolejnym blokiem niżej ("KOLOR_PRACA") - NIE jest już
+      // ostatnim blokiem w tej kolumnie jak w starym układzie.
+      blocks: [
+        {
+          // Pasmo 1: Firma + integracje - wiersz 1 (nagłówki), wiersz 2
+          // (wartości); PRACODAWCY_TELEGRAM_IDS (kol. G) może mieć więcej
+          // niż 1 wiersz (lista ID) - dopisywane przez setEmployerTelegramIds().
+          noTitle: true,
+          startRow: 1,
+          startCol: 1, // A
+          headers: [
+            'NAZWA_FIRMY', 'logo', 'NORMA_ETAT_UOP', 'NORMA_OZN_UOP',
+            'MIESIAC_GRAFIKU', 'WEBHOOK_URL', 'PRACODAWCY_TELEGRAM_IDS',
+            'GOOGLE_PLACES_API_KEY', 'GOOGLE_PLACE_ID', 'APPS_SCRIPT_EDITOR_URL'
+          ],
+          widths: [140, 220, 130, 130, 130, 260, 150, 260, 220, 240],
+          // MIESIAC_GRAFIKU (5) wymuszone jako czysty tekst - inaczej
+          // Arkusze potrafią same przerobić wpisane "2026-10" na prawdziwą
+          // datę (bez ostrzeżenia).
+          textColumns: [5],
+          headerNotes: [
+            'Nazwa firmy widoczna w Mini App i na wydrukach Grafiku.',
+            'Ręczny link do logo (ma pierwszeństwo). Puste = automatycznie zdjęcie profilowe bota Telegram.',
+            'Dobowa norma godzin pełnego etatu (UoP). Nadpisywana przez Podstawy prawne (Klucz NORMA_DOBOWA_ETAT), jeśli wypełniona.',
+            'Dobowa norma godzin OzN (Umiarkowany/Znaczny). Nadpisywana przez Podstawy prawne (Klucz NORMA_DOBOWA_OZN).',
+            'Miesiąc, dla którego generowany jest kolejny Grafik (YYYY-MM). Wymuszone jako czysty tekst - inaczej Arkusze zamieniają to na prawdziwą datę.',
+            'Adres Web App (/exec) używany jako webhook Telegrama - ustawiany automatycznie przez 🔗 Zapisz Deployment URL.',
+            'Jeden lub więcej Telegram ID pracodawców, po jednym na wiersz - dopisywane przez menu 👔 Ustaw Telegram ID Pracodawców (NIE edytuj ręcznie środkowych wierszy, tylko przez to menu).',
+            'Klucz publicznego Places API (New) - używany też przez misz-masz.cc do pokazywania godzin na żywo.',
+            'ID lokalizacji w Google Maps - to samo co na stronie.',
+            'Link do edytora Apps Script (standalone projekt) - "Rozszerzenia → Apps Script" w arkuszu go NIE otwiera.'
+          ],
+          data: [
+            ['Moja Firma Sp. z o.o.', '', 8, 7, '2026-10', '', '', '', '', 'https://script.google.com/d/1qRQLX_ljI23OK4-EFg6UYHCngRhvkHT212KH83IYPkluIMasMaYOth-i/edit']
+          ]
+        },
+        {
+          // Pasmo 2: dni/godziny pracy (7 wierszy, jeden na dzień tygodnia)
+          // + nadgodziny/generator grafiku/paleta kolorów (ustawienia
+          // JEDNOWARTOŚCIOWE, wypełnione tylko w pierwszym wierszu danych -
+          // reszta wierszy w tych kolumnach zostaje pusta).
+          noTitle: true,
+          startRow: 7,
+          startCol: 1,
+          headers: [
+            'dni pracy', 'godziny pracy', 'NADGODZINY', 'DNI_GRAFIKU',
+            'OSTATNI_DZIEN_GRAFIKU', 'KOLOR_MARKA', 'KOLOR_PRACA', 'KOLOR_UWAGA', 'KOLOR_TLO'
+          ],
+          widths: [140, 160, 120, 120, 190, 130, 130, 130, 130],
+          // OSTATNI_DZIEN_GRAFIKU (5) wymuszone jako czysty tekst z tego
+          // samego powodu co MIESIAC_GRAFIKU w pasmie 1.
+          textColumns: [5],
+          headerNotes: [
+            'Dzień tygodnia (jeden wiersz na dzień) - lista rozwijana.',
+            'Godziny otwarcia tego dnia, np. "8.00 - 16.00"; puste = firma nieczynna.',
+            'TAK/NIE - globalna zgoda firmy na nadgodziny. OzN nigdy nie ma nadgodzin, niezależnie od tej wartości.',
+            'Liczba dni okresu grafiku (np. 14, 20); puste = cały kalendarzowy miesiąc.',
+            'YYYY-MM-DD ostatniego dnia już wygenerowanego okresu - ustawiane automatycznie, NIE edytuj ręcznie.',
+            'Kolor bazowy (hex) - wpisywany ręcznie, reszta palety wyliczana z niego automatycznie.',
+            'Wyliczany automatycznie z KOLOR_MARKA - NIE edytuj ręcznie, nadpisze go kolejne uruchomienie generatora palety.',
+            'Wyliczany automatycznie z KOLOR_MARKA - NIE edytuj ręcznie.',
+            'Wyliczany automatycznie z KOLOR_MARKA - NIE edytuj ręcznie (jasny, stonowany neutralny odcień).'
+          ],
+          data: [
+            ['Poniedziałek', '8.00 - 16.00', 'NIE', '', '', '#2EA6FF', '#31C46C', '#FF5A5F', '#F2F2F2'],
+            ['Wtorek', '8.00 - 16.00', '', '', '', '', '', '', ''],
+            ['Środa', '8.00 - 16.00', '', '', '', '', '', '', ''],
+            ['Czwartek', '8.00 - 16.00', '', '', '', '', '', '', ''],
+            ['Piątek', '8.00 - 16.00', '', '', '', '', '', '', ''],
+            ['Sobota', '', '', '', '', '', '', '', ''],
+            ['Niedziela', '', '', '', '', '', '', '', '']
+          ]
+        },
+        {
+          // Pasmo 3: klucze AI + backup + dyspozycyjność. Kolumna C celowo
+          // pusta (odstęp) - tak jest w żywym arkuszu.
+          noTitle: true,
+          startRow: 16,
+          startCol: 1,
+          headers: ['GEMINI_API_KEY', 'GROQ_API_KEY', '', 'BACKUP_CO_DNI', 'DYSPOZYCYJNOSC'],
+          widths: [260, 260, 30, 140, 140],
+          headerNotes: [
+            'Klucz Gemini (aistudio.google.com) - NIEUŻYWANY przez żaden kod (porzucone na rzecz Groq, wymagał przedpłaty na koncie - patrz CLAUDE.md). Zostawiony jako pole, bez odczytu.',
+            'Darmowy klucz Groq (console.groq.com/keys, bez karty) - używany wyłącznie przez "🔍 Sugestie AI" w zakładce Podstawy prawne.',
+            '',
+            'Co ile dni robić automatyczny backup arkusza; puste = domyślnie 7.',
+            'TAK/NIE - czy Mini App pokazuje pracownikom przycisk/zakładkę "Dyspozycyjność". NIE = pracownicy nie mogą zgłaszać dni wolnych (generator liczy wtedy każdego jako dostępnego w każdy dzień roboczy). Odczyt: isDyspozycyjnoscEnabled() (Config.gs).'
+          ],
+          data: [
+            ['', '', '', 7, 'TAK']
+          ]
+        }
       ]
     },
     'Pracownicy': {
       color: '#2B6CB0', // Niebieski
+      // Kolumny znajdowane PO NAZWIE NAGŁÓWKA w kodzie (getEmployeesColumnMap,
+      // Config.gs), NIE po stałej pozycji - dodane 2026-09-22 po tym, jak ręczne
+      // wstawienie Data_Zatrudnienia bezpośrednio w arkuszu (bez zmiany kodu)
+      // rozjechało wszystkie sztywne indeksy za Imie_Nazwisko (auth PIN, Suma_Urlopów).
+      // Kolejność poniżej może się więc różnić od kolejności w żywym arkuszu bez ryzyka.
       headers: [
         'ID_Pracownika',
         'Telegram_ChatID',
         'Imie_Nazwisko',
+        'Data_Zatrudnienia',  // YYYY-MM-DD, informacyjne - Suma_Urlopów liczy się z Staz_Pracy_Lata, nie z tej daty
         'Forma_Zatrudnienia', // UoP / UZ / B2B
         'Wymiar_Etatu',       // 1.0, 0.5, 0.75
         'Stopien_OZN',        // Brak / Lekki / Umiarkowany / Znaczny
@@ -68,9 +166,9 @@ function getDatabaseSchema() {
       // i Ustawienia!NORMA_OZN_UOP/NORMA_OZN_TYGODNIOWA_UOP w GrafikGeneratorService.gs) -
       // jedna kolumna Stopien_OZN wystarcza, druga byłaby zbędnym duplikatem.
       initialData: [
-        ['EMP-001', '', 'Jan Kowalski', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
-        ['EMP-002', '', 'Anna Nowak', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30], // 20 + 10 OzN
-        ['EMP-003', '', 'Piotr Wiśniewski', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0]
+        ['EMP-001', '', 'Jan Kowalski', '', 'UoP', 1.0, 'Brak', 'Autoryzowany', 12, 3, '', 26],
+        ['EMP-002', '', 'Anna Nowak', '', 'UoP', 1.0, 'Umiarkowany', 'OczekujeNaPIN', 4, 3, '', 30], // 20 + 10 OzN
+        ['EMP-003', '', 'Piotr Wiśniewski', '', 'UZ', 1.0, 'Brak', 'OczekujeNaPIN', 2, 3, '', 0]
       ]
     },
     'Grafik': {
@@ -122,7 +220,7 @@ function getDatabaseSchema() {
       headers: [
         'ID_Wniosku',
         'ID_Pracownika',
-        'Typ_Wniosku',       // Urlop Wypoczynkowy / Urlop OzN / Turnus Rehabilitacyjny / e-ZLA / Korekta START
+        'Typ_Wniosku',       // Urlop Wypoczynkowy / Urlop na żądanie / Urlop OzN / Turnus Rehabilitacyjny / e-ZLA / Korekta START
         'Data_Od',
         'Data_Do',
         'Status_Akceptacji', // Oczekuje / Zatwierdzony / Odrzucony
@@ -171,21 +269,30 @@ function getDatabaseSchema() {
     },
     'Podstawy prawne': {
       color: '#742A2A', // Bordowy - odróżnia od pozostałych zakładek operacyjnych
-      // Zakładka czytelna dla ludzi, ale Wartość jest CELOWO samą liczbą (albo
-      // krótkim "liczba/liczba" przy dwóch wariantach) - opis/warunki/jednostka
-      // idą do Jednostka i Uwagi. Ostatnia kolumna (Klucz) JEST czytana przez
-      // kod (patrz getPodstawaPrawnaNumber() w Config.gs, czyta Wartość po
-      // dopasowaniu Klucza) - to jedyny sposób, żeby liczby użyte w
-      // generowaniu Grafiku faktycznie pochodziły z tej tabeli. Wypełniona
-      // tylko przy wierszach, które generator faktycznie wykorzystuje - reszta
-      // zostaje czysto informacyjna (Klucz puste).
+      // Przebudowane 2026-09-17 z JEDNEJ płaskiej tabeli A-G (19 wierszy, przy
+      // 90% zoomu nieczytelna) na 4 samodzielne, tytułowane mini-tabele w
+      // układzie 2x2 - `blocks` niżej, każdy blok ma własny startRow/startCol.
+      // Lewa kolumna (A-F): "Czas pracy" + "Nadgodziny" (normy godzin).
+      // Prawa kolumna (I-N): "Urlop wypoczynkowy" + "OzN" (uprawnienia/urlopy).
+      // Kolumny G-H to celowo pusty odstęp (gutter) między kolumnami tabel.
+      // Kolumny I-N NIE są przypadkowe - to te same kolumny, w których wiersz 1
+      // ma panel przycisków ("🔄 Sprawdź aktualizację ustaw" / "🔍 Sugestie AI"
+      // - patrz zainstalujPrzyciskiPodstawPrawnych() w NarzedziaSerwisowe.gs).
+      // Panel siedzi WYŁĄCZNIE w wierszu 1, tabele zaczynają się od wiersza 3,
+      // więc nie kolidują - ale instalator wymusza szerokości I=200/J=40/
+      // K=200/L=40/N=320 (M wolne), dlatego kolejność nagłówków w KAŻDYM bloku
+      // (też lewym, dla wizualnej spójności) jest dopasowana do tych szerokości:
+      // Zagadnienie(200)/Wartość(40)/Podstawa prawna(200)/Klucz(40, najmniej
+      // istotne pole - kod, nie dla ludzi)/Jednostka/Uwagi(320, długie opisy).
+      // Kategoria zniknęła jako kolumna - to teraz tytuł blocku (kolorowy
+      // scalony wiersz nad nagłówkiem).
       //
-      // Wiersz 1 (kolumny I-N) to też mini-panel przycisków ("🔄 Sprawdź
-      // aktualizację ustaw" / "🔍 Sugestie AI (Groq)") - patrz
-      // zainstalujPrzyciskiPodstawPrawnych() w NarzedziaSerwisowe.gs i
-      // PodstawyPrawneService.gs. Instalacja przycisków NIE jest częścią tego
-      // schematu (przebudowa arkusza czyści też I1:N1) - uruchom instalator
-      // jeszcze raz po każdej przebudowie tej zakładki.
+      // getPodstawaPrawnaNumber() (Config.gs) i _readPodstawyPrawneRows()
+      // (PodstawyPrawneService.gs) czytają to teraz przez WSPÓLNY, generyczny
+      // skaner _scanPodstawyPrawneBlocks() (Config.gs) - szuka nagłówka
+      // "Klucz" gdziekolwiek w arkuszu i dopasowuje pozycje "Wartość" itd. po
+      // TEKŚCIE nagłówka w tym samym wierszu, nie po ustalonej pozycji kolumny
+      // - działa niezależnie od tego, w którym z 4 bloków dany Klucz leży.
       //
       // Dane sprawdzone bezpośrednio w oficjalnych tekstach jednolitych
       // pobranych do docs/prawo/ (stan na wrzesień 2026):
@@ -197,30 +304,70 @@ function getDatabaseSchema() {
       // "🔍 Sugestie AI (Groq)" (WYŁĄCZNIE doradcze - ocenia tytuły nowelizacji,
       // nic nie zapisuje w tabeli; patrz nagłówek PodstawyPrawneService.gs po
       // wyjaśnienie, czemu AI tu nie nadpisuje wartości bezpośrednio).
-      headers: ['Kategoria', 'Zagadnienie', 'Wartość', 'Jednostka', 'Podstawa prawna', 'Uwagi', 'Klucz'],
-      // Wartość (kolumna 3) wymuszona jako czysty tekst - inaczej Arkusze
-      // próbują sparsować "20/26" albo "100/50" jako datę wg lokalizacji.
-      textColumns: [3],
-      initialData: [
-        ['Czas pracy (pełny etat)', 'Norma dobowa', 8, 'godzin/dobę', 'Art. 129 §1 KP', 'Podstawowy system czasu pracy', 'NORMA_DOBOWA_ETAT'],
-        ['Czas pracy (pełny etat)', 'Norma tygodniowa', 40, 'godzin/tydzień (przeciętnie, przeciętny 5-dniowy tydzień)', 'Art. 129 §1 KP', 'Okres rozliczeniowy standardowo do 4 miesięcy', ''],
-        ['Czas pracy (pełny etat)', 'Odpoczynek dobowy', 11, 'godzin (min. nieprzerwanego odpoczynku)', 'Art. 132 §1 KP', '', ''],
-        ['Czas pracy (pełny etat)', 'Odpoczynek tygodniowy', 35, 'godzin (min., w tym min. 11h dobowego)', 'Art. 133 §1 KP', '', ''],
-        ['Czas pracy (pełny etat)', 'Przerwa w pracy', 15, 'min (przy dobowym wymiarze ≥6h, wliczana do czasu pracy)', 'Art. 134 §1 pkt 1 KP', 'Kolejne 15 min przy >9h i >16h dobowego wymiaru', ''],
-        ['Nadgodziny', 'Tygodniowy limit z nadgodzinami', 48, 'godzin/tydzień (przeciętnie, max)', 'Art. 131 §1 KP', '', ''],
-        ['Nadgodziny', 'Roczny limit nadgodzin', 150, 'godzin/rok kalendarzowy', 'Art. 151 §3 KP', 'Inny limit można ustalić w układzie zbiorowym/regulaminie/umowie (Art. 151 §4 KP)', ''],
-        ['Nadgodziny', 'Dodatek za nadgodziny', '100/50', '% (100 - noc, niedziele/święta niebędące dniem pracy, dzień wolny w zamian; 50 - pozostałe przypadki)', 'Art. 151(1) §1 KP', '', ''],
-        ['Urlop wypoczynkowy', 'Wymiar urlopu', '20/26', 'dni/rok (20 przy stażu <10 lat, 26 przy stażu ≥10 lat)', 'Art. 154 §1 KP', 'Do stażu wlicza się okresy nauki (Art. 155 KP)', ''],
-        ['Urlop wypoczynkowy', 'Przelicznik dnia urlopu', 8, 'godzin/dzień urlopu', 'Art. 154(2) §2 KP', '', ''],
-        ['Urlop wypoczynkowy', 'Ekwiwalent za niewykorzystany urlop', 'TAK', '(przysługuje przy rozwiązaniu/wygaśnięciu umowy)', 'Art. 171 §1 KP', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Brak/Lekki stopień)', 8, 'godzin/dobę', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', 'Ta sama norma co przy pełnym etacie', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Brak/Lekki stopień)', 40, 'godzin/tydzień', 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma dobowa (Umiarkowany/Znaczny stopień)', 7, 'godzin/dobę', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Używane bezpośrednio przez generator Grafiku', 'NORMA_DOBOWA_OZN'],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Norma tygodniowa (Umiarkowany/Znaczny stopień)', 35, 'godzin/tydzień', 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'Używane bezpośrednio przez generator Grafiku', 'NORMA_TYGODNIOWA_OZN'],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Zakaz nadgodzin i pracy nocnej', 'TAK', '(dotyczy KAŻDEGO stopnia niepełnosprawności, także Lekkiego)', 'Art. 15 ust. 3 ustawy o rehabilitacji zawodowej', 'Patrz canEmployeeHaveOvertime() w Config.gs', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowa przerwa', 15, 'min (wliczana do czasu pracy)', 'Art. 17 ustawy o rehabilitacji zawodowej', '', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Dodatkowy urlop wypoczynkowy', 10, 'dni roboczych/rok (tylko Umiarkowany/Znaczny stopień)', 'Art. 19 ust. 1 ustawy o rehabilitacji zawodowej', 'Prawo po 1 roku pracy od dnia zaliczenia do stopnia; nie przysługuje przy urlopie podstawowym >26 dni (Art. 19 ust. 2)', ''],
-        ['Pracownicy z niepełnosprawnością (OzN)', 'Zwolnienie na turnus rehabilitacyjny', 21, 'dni roboczych/rok, z zachowaniem wynagrodzenia (max)', 'Art. 20 ust. 1 ustawy o rehabilitacji zawodowej', 'Łącznie z dodatkowym urlopem (wiersz wyżej) max 21 dni/rok (Art. 20 ust. 3)', '']
+      blocks: [
+        {
+          title: 'Czas pracy (pełny etat)',
+          startRow: 3,
+          startCol: 1, // A
+          headers: ['Zagadnienie', 'Wartość', 'Podstawa prawna', 'Klucz', 'Jednostka', 'Uwagi'],
+          widths: [190, 70, 190, 110, 240, 260],
+          wrapColumns: [5, 6], // Jednostka, Uwagi - długie opisy, zawijane zamiast rozpychać kolumnę
+          textColumns: [2], // Wartość - inaczej Arkusze próbują sparsować "100/50"/"20/26" jako datę
+          data: [
+            ['Norma dobowa', 8, 'Art. 129 §1 KP', 'NORMA_DOBOWA_ETAT', 'godzin/dobę', 'Podstawowy system czasu pracy'],
+            ['Norma tygodniowa', 40, 'Art. 129 §1 KP', 'NORMA_TYGODNIOWA_ETAT', 'godzin/tydzień (przeciętnie, przeciętny 5-dniowy tydzień)', 'Okres rozliczeniowy standardowo do 4 miesięcy. Używane bezpośrednio przez generator Grafiku (limit tygodniowy dla pracowników bez zgody na nadgodziny).'],
+            ['Odpoczynek dobowy', 11, 'Art. 132 §1 KP', '', 'godzin (min. nieprzerwanego odpoczynku)', ''],
+            ['Odpoczynek tygodniowy', 35, 'Art. 133 §1 KP', '', 'godzin (min., w tym min. 11h dobowego)', ''],
+            ['Przerwa w pracy', 15, 'Art. 134 §1 pkt 1 KP', '', 'min (przy dobowym wymiarze ≥6h, wliczana do czasu pracy)', 'Kolejne 15 min przy >9h i >16h dobowego wymiaru']
+          ]
+        },
+        {
+          title: 'Nadgodziny',
+          startRow: 11,
+          startCol: 1, // A
+          headers: ['Zagadnienie', 'Wartość', 'Podstawa prawna', 'Klucz', 'Jednostka', 'Uwagi'],
+          widths: [190, 70, 190, 110, 240, 260],
+          wrapColumns: [5, 6],
+          textColumns: [2],
+          data: [
+            ['Tygodniowy limit z nadgodzinami', 48, 'Art. 131 §1 KP', 'LIMIT_TYGODNIOWY_Z_NADGODZINAMI', 'godzin/tydzień (przeciętnie, max)', 'Używane bezpośrednio przez generator Grafiku - górna granica godzin w POJEDYNCZYM tygodniu, nawet gdy firma dopuszcza nadgodziny.'],
+            ['Roczny limit nadgodzin', 150, 'Art. 151 §3 KP', '', 'godzin/rok kalendarzowy', 'Inny limit można ustalić w układzie zbiorowym/regulaminie/umowie (Art. 151 §4 KP)'],
+            ['Dodatek za nadgodziny', '100/50', 'Art. 151(1) §1 KP', '', '% (100 - noc, niedziele/święta niebędące dniem pracy, dzień wolny w zamian; 50 - pozostałe przypadki)', '']
+          ]
+        },
+        {
+          title: 'Urlop wypoczynkowy',
+          startRow: 3,
+          startCol: 9, // I
+          headers: ['Zagadnienie', 'Wartość', 'Podstawa prawna', 'Klucz', 'Jednostka', 'Uwagi'],
+          widths: [190, 70, 190, 110, 240, 260],
+          wrapColumns: [5, 6],
+          textColumns: [2],
+          data: [
+            ['Wymiar urlopu', '20/26', 'Art. 154 §1 KP', '', 'dni/rok (20 przy stażu <10 lat, 26 przy stażu ≥10 lat)', 'Do stażu wlicza się okresy nauki (Art. 155 KP)'],
+            ['Przelicznik dnia urlopu', 8, 'Art. 154(2) §2 KP', '', 'godzin/dzień urlopu', ''],
+            ['Ekwiwalent za niewykorzystany urlop', 'TAK', 'Art. 171 §1 KP', '', '(przysługuje przy rozwiązaniu/wygaśnięciu umowy)', '']
+          ]
+        },
+        {
+          title: 'Pracownicy z niepełnosprawnością (OzN)',
+          startRow: 9,
+          startCol: 9, // I
+          headers: ['Zagadnienie', 'Wartość', 'Podstawa prawna', 'Klucz', 'Jednostka', 'Uwagi'],
+          widths: [190, 70, 190, 110, 240, 260],
+          wrapColumns: [5, 6],
+          textColumns: [2],
+          data: [
+            ['Norma dobowa (Brak/Lekki stopień)', 8, 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', '', 'godzin/dobę', 'Ta sama norma co przy pełnym etacie'],
+            ['Norma tygodniowa (Brak/Lekki stopień)', 40, 'Art. 15 ust. 1 ustawy o rehabilitacji zawodowej', '', 'godzin/tydzień', ''],
+            ['Norma dobowa (Umiarkowany/Znaczny stopień)', 7, 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'NORMA_DOBOWA_OZN', 'godzin/dobę', 'Używane bezpośrednio przez generator Grafiku'],
+            ['Norma tygodniowa (Umiarkowany/Znaczny stopień)', 35, 'Art. 15 ust. 2 ustawy o rehabilitacji zawodowej', 'NORMA_TYGODNIOWA_OZN', 'godzin/tydzień', 'Używane bezpośrednio przez generator Grafiku'],
+            ['Zakaz nadgodzin i pracy nocnej', 'TAK', 'Art. 15 ust. 3 ustawy o rehabilitacji zawodowej', '', '(dotyczy KAŻDEGO stopnia niepełnosprawności, także Lekkiego)', 'Patrz canEmployeeHaveOvertime() w Config.gs'],
+            ['Dodatkowa przerwa', 15, 'Art. 17 ustawy o rehabilitacji zawodowej', '', 'min (wliczana do czasu pracy)', ''],
+            ['Dodatkowy urlop wypoczynkowy', 10, 'Art. 19 ust. 1 ustawy o rehabilitacji zawodowej', 'DODATKOWY_URLOP_OZN', 'dni roboczych/rok (tylko Umiarkowany/Znaczny stopień)', 'Prawo po 1 roku pracy od dnia zaliczenia do stopnia; nie przysługuje przy urlopie podstawowym >26 dni (Art. 19 ust. 2). Używane bezpośrednio przez calculateSumaUrlopow() (AvailabilityService.gs).'],
+            ['Zwolnienie na turnus rehabilitacyjny', 21, 'Art. 20 ust. 1 ustawy o rehabilitacji zawodowej', '', 'dni roboczych/rok, z zachowaniem wynagrodzenia (max)', 'Łącznie z dodatkowym urlopem (wiersz wyżej) max 21 dni/rok (Art. 20 ust. 3)']
+          ]
+        }
       ]
     }
   };
@@ -240,6 +387,13 @@ function buildSheetFromSchema(ss, sheetName, config) {
     sheet = ss.insertSheet(sheetName);
   } else {
     sheet.clear(); // Wyczyszczenie istniejącej zawartości przed nadpisaniem
+  }
+
+  // Schemat z kilkoma samodzielnymi mini-tabelami (np. "Podstawy prawne") ma
+  // zupełnie inny układ niż płaski headers+initialData poniżej - osobna ścieżka.
+  if (config.blocks) {
+    buildBlockGridSheet(sheet, config);
+    return sheet;
   }
 
   // 1. Dodanie nagłówków
@@ -300,6 +454,78 @@ function buildSheetFromSchema(ss, sheetName, config) {
 }
 
 /**
+ * Buduje kilka samodzielnych mini-tabel w jednym arkuszu (np. "Podstawy
+ * prawne": 4 tabele w układzie 2x2; "Ustawienia": 3 pasma wierszy) - używane
+ * przez buildSheetFromSchema(), gdy schemat definiuje `blocks` zamiast
+ * płaskich `headers`/`initialData`. Każdy blok ma własny startRow/startCol
+ * (1-indeks) i opcjonalnie `widths`/`wrapColumns`/`textColumns`/`headerNotes`
+ * (indeksy/pozycje WZGLĘDNE względem `headers` tego blocku, 1 = pierwsza
+ * kolumna blocku). Domyślnie blok ma scalony kolorowy wiersz tytułowy NAD
+ * nagłówkiem kolumn (startRow = tytuł, startRow+1 = nagłówki) - `noTitle:
+ * true` pomija ten wiersz całkowicie (startRow = od razu nagłówki), dla
+ * bloków wyświetlanych bez tytułu (patrz "Ustawienia" niżej). Sama zawartość
+ * danych (`data`) NIE jest tu wstawiana - jak w resztach schematu, arkusz
+ * zostaje pusty pod nagłówkami, dane wstawia insertSampleDataIntoActiveSheet().
+ */
+function buildBlockGridSheet(sheet, config) {
+  config.blocks.forEach(function (block) {
+    const width = block.headers.length;
+
+    if (!block.noTitle) {
+      const titleRange = sheet.getRange(block.startRow, block.startCol, 1, width);
+      titleRange.merge()
+        .setValue(block.title)
+        .setBackground(block.color || config.color)
+        .setFontColor('#FFFFFF')
+        .setFontWeight('bold')
+        .setHorizontalAlignment('center')
+        .setVerticalAlignment('middle');
+      sheet.setRowHeight(block.startRow, 26);
+    }
+
+    const headerRow = block.noTitle ? block.startRow : block.startRow + 1;
+    const headerRange = sheet.getRange(headerRow, block.startCol, 1, width);
+    headerRange.setValues([block.headers])
+      .setBackground('#EDEDED')
+      .setFontColor('#333333')
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle');
+    sheet.setRowHeight(headerRow, 24);
+
+    if (block.textColumns && block.textColumns.length) {
+      block.textColumns.forEach(function (relCol) {
+        sheet.getRange(headerRow, block.startCol + relCol - 1, sheet.getMaxRows() - headerRow + 1, 1).setNumberFormat('@');
+      });
+    }
+
+    if (block.widths && block.widths.length) {
+      block.widths.forEach(function (w, i) {
+        if (w) sheet.setColumnWidth(block.startCol + i, w);
+      });
+    }
+
+    if (block.wrapColumns && block.wrapColumns.length) {
+      const dataRows = Math.max(block.data ? block.data.length : 0, 1);
+      block.wrapColumns.forEach(function (relCol) {
+        sheet.getRange(headerRow + 1, block.startCol + relCol - 1, dataRows, 1).setWrap(true);
+      });
+    }
+
+    // Opis ustawienia jako notatka na komórce nagłówka (mały czerwony
+    // trójkąt, treść po najechaniu) - zamiast osobnej kolumny "Opis", żeby
+    // blok kolumnowy (nagłówek = nazwa ustawienia) nie musiał robić miejsca
+    // na dodatkową kolumnę tekstu. `headerNotes` to tablica RÓWNOLEGŁA do
+    // `headers` (pusty string/undefined = brak notatki na danej kolumnie).
+    if (block.headerNotes && block.headerNotes.length) {
+      block.headerNotes.forEach(function (note, i) {
+        if (note) sheet.getRange(headerRow, block.startCol + i).setNote(note);
+      });
+    }
+  });
+}
+
+/**
  * Dopisuje do PODANEGO arkusza brakujące nagłówki kolumn ze schematu, BEZ
  * ruszania istniejących danych - bezpieczne uzupełnienie żywego arkusza po
  * dodaniu nowych kolumn do generatora (np. DNI_GRAFIKU, KOLOR_MARKA,
@@ -310,6 +536,23 @@ function buildSheetFromSchema(ss, sheetName, config) {
 function ensureSheetColumnsExist(sheetName) {
   const sheet = getSpreadsheet().getSheetByName(sheetName);
   const schema = getDatabaseSchema()[sheetName];
+
+  // Schematy z `blocks` (Ustawienia, Podstawy prawne) nie mają płaskiej listy
+  // nagłówków w wierszu 1 - "dopisz brakującą kolumnę na końcu" nie ma tu
+  // sensu (ustawienia to teraz wiersze w kilku osobnych mini-tabelach).
+  // Brakujące ustawienie dopisz ręcznie do właściwej mini-tabeli, albo
+  // przebuduj całą zakładkę od zera (🔁 Przebuduj wybrany arkusz od nowa).
+  if (schema.blocks) {
+    const msg = 'ℹ️ "' + sheetName + '" używa układu kilku mini-tabel (blocks) - brakujące ustawienie dopisz ręcznie do odpowiedniej tabeli, albo przebuduj całą zakładkę od zera (🔁 Przebuduj wybrany arkusz od nowa).';
+    Logger.log(msg);
+    try {
+      SpreadsheetApp.getUi().alert(msg);
+    } catch (e) {
+      // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+    }
+    return msg;
+  }
+
   const lastCol = sheet.getLastColumn();
   const existingHeaders = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
   // Porównanie bez rozróżniania wielkości liter - "Nadgodziny" i "NADGODZINY"
@@ -475,6 +718,34 @@ function insertSampleDataIntoActiveSheet() {
 
   if (!config) {
     ui.alert('⚠️ Arkusz "' + sheetName + '" nie jest częścią schematu systemu — brak dla niego przykładowych danych.');
+    return;
+  }
+
+  // Schemat z kilkoma mini-tabelami (np. "Podstawy prawne") - każdy blok ma
+  // własne dane pod własnym nagłówkiem, osobna ścieżka od płaskiego schematu.
+  if (config.blocks) {
+    const hasBlockData = config.blocks.some(function (b) { return b.data && b.data.length > 0; });
+    if (!hasBlockData) {
+      ui.alert('ℹ️ Arkusz "' + sheetName + '" nie ma zdefiniowanych przykładowych danych w schemacie.');
+      return;
+    }
+
+    const blockResponse = ui.alert(
+      '📋 Wstaw przykładowe dane',
+      'Wstawić przykładowe dane do otwartego arkusza "' + sheetName + '"?\n\n' +
+        'Nadpisze to odpowiednie wiersze w TYM arkuszu (reszta pliku zostaje bez zmian).',
+      ui.ButtonSet.YES_NO
+    );
+    if (blockResponse !== ui.Button.YES) return;
+
+    config.blocks.forEach(function (block) {
+      if (block.data && block.data.length > 0) {
+        const dataRow = block.noTitle ? block.startRow + 1 : block.startRow + 2;
+        sheet.getRange(dataRow, block.startCol, block.data.length, block.headers.length).setValues(block.data);
+      }
+    });
+
+    ui.alert('✅ Wstawiono przykładowe dane do arkusza "' + sheetName + '".');
     return;
   }
 

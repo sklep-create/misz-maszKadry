@@ -5,15 +5,17 @@ function isUserAuthorized(chatId) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
-  
+  const col = getEmployeesColumnMap(sheet);
+
   for (let i = 1; i < data.length; i++) {
-    if (data[i][1].toString() === chatId.toString()) {
+    if (data[i][col['Telegram_ChatID']].toString() === chatId.toString()) {
+      const status = data[i][col['Status_Autoryzacji']];
       return {
-        authorized: data[i][6] === 'Autoryzowany' || data[i][6] === true,
-        employeeId: data[i][0],
-        name: data[i][2] || '',
-        status: data[i][6] || '',
-        attemptsLeft: Number(data[i][8]) || 3
+        authorized: status === 'Autoryzowany' || status === true,
+        employeeId: data[i][col['ID_Pracownika']],
+        name: data[i][col['Imie_Nazwisko']] || '',
+        status: status || '',
+        attemptsLeft: Number(data[i][col['Licz_błędy']]) || 3
       };
     }
   }
@@ -27,14 +29,15 @@ function getEmployeeById(employeeId) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
+  const col = getEmployeesColumnMap(sheet);
 
   for (let i = 1; i < data.length; i++) {
-    if ((data[i][0] || '').toString() === employeeId.toString()) {
+    if ((data[i][col['ID_Pracownika']] || '').toString() === employeeId.toString()) {
       return {
-        employeeId: data[i][0],
-        fullName: data[i][2] || '',
-        wymiarEtatu: data[i][4],
-        stopienOzn: data[i][5]
+        employeeId: data[i][col['ID_Pracownika']],
+        fullName: data[i][col['Imie_Nazwisko']] || '',
+        wymiarEtatu: data[i][col['Wymiar_Etatu']],
+        stopienOzn: data[i][col['Stopien_OZN']]
       };
     }
   }
@@ -51,14 +54,15 @@ function setAwaitingPinStatus(chatId) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
+  const col = getEmployeesColumnMap(sheet);
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][1].toString() !== chatId.toString()) continue;
+    if (data[i][col['Telegram_ChatID']].toString() !== chatId.toString()) continue;
 
-    const status = (data[i][6] || '').toString();
+    const status = (data[i][col['Status_Autoryzacji']] || '').toString();
     if (status === 'Zablokowany' || status === 'Autoryzowany') return;
 
-    sheet.getRange(i + 1, 7).setValue('PodajePIN'); // Status_Autoryzacji
+    sheet.getRange(i + 1, col['Status_Autoryzacji'] + 1).setValue('PodajePIN');
     return;
   }
 }
@@ -97,24 +101,19 @@ function isEmployerTelegramChat(chatId) {
 function registerNewEmployee(chatId, fullName) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
+  const col = getEmployeesColumnMap(sheet);
   const pin = generateRegistrationPin();
   const employeeId = generateNextEmployeeId(sheet);
   const safeName = (fullName || '').toString().trim();
-  
-  const row = [
-    employeeId,
-    chatId,
-    safeName,
-    '',
-    '',
-    '',
-    'OczekujeNaPIN',
-    '',
-    3,
-    pin,
-    ''
-  ];
-  
+
+  const row = new Array(sheet.getLastColumn()).fill('');
+  row[col['ID_Pracownika']] = employeeId;
+  row[col['Telegram_ChatID']] = chatId;
+  row[col['Imie_Nazwisko']] = safeName;
+  row[col['Status_Autoryzacji']] = 'OczekujeNaPIN';
+  row[col['Licz_błędy']] = 3;
+  row[col['PIN']] = pin;
+
   sheet.appendRow(row);
   
   return {
@@ -131,42 +130,43 @@ function authorizeUserWithPin(chatId, enteredPin) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEETS.EMPLOYEES);
   const data = sheet.getDataRange().getValues();
-  
+  const col = getEmployeesColumnMap(sheet);
+
   for (let i = 1; i < data.length; i++) {
-    if (data[i][1].toString() !== chatId.toString()) {
+    if (data[i][col['Telegram_ChatID']].toString() !== chatId.toString()) {
       continue;
     }
-    
+
     const rowIndex = i + 1;
-    const status = (data[i][6] || '').toString();
-    const storedPin = (data[i][9] || '').toString().trim();
-    const attemptsLeft = Number(data[i][8]) || 3;
-    
+    const status = (data[i][col['Status_Autoryzacji']] || '').toString();
+    const storedPin = (data[i][col['PIN']] || '').toString().trim();
+    const attemptsLeft = Number(data[i][col['Licz_błędy']]) || 3;
+
     if (status === 'Zablokowany') {
       return { success: false, blocked: true, attemptsLeft: 0 };
     }
-    
+
     if (status === 'Autoryzowany') {
       return { success: true, alreadyAuthorized: true };
     }
-    
+
     if (storedPin && enteredPin.trim() === storedPin) {
-      sheet.getRange(rowIndex, 7).setValue('Autoryzowany'); // Status_Autoryzacji
-      sheet.getRange(rowIndex, 10).setValue('');            // PIN (jednorazowy)
+      sheet.getRange(rowIndex, col['Status_Autoryzacji'] + 1).setValue('Autoryzowany');
+      sheet.getRange(rowIndex, col['PIN'] + 1).setValue('');
       return { success: true, attemptsLeft: attemptsLeft };
     }
-    
+
     const nextAttemptsLeft = Math.max(attemptsLeft - 1, 0);
-    sheet.getRange(rowIndex, 9).setValue(nextAttemptsLeft); // Licz_błędy
-    
+    sheet.getRange(rowIndex, col['Licz_błędy'] + 1).setValue(nextAttemptsLeft);
+
     if (nextAttemptsLeft === 0) {
-      sheet.getRange(rowIndex, 7).setValue('Zablokowany');
+      sheet.getRange(rowIndex, col['Status_Autoryzacji'] + 1).setValue('Zablokowany');
       return { success: false, blocked: true, attemptsLeft: 0 };
     }
-    
+
     return { success: false, blocked: false, attemptsLeft: nextAttemptsLeft };
   }
-  
+
   return { success: false, notFound: true };
 }
 
@@ -183,13 +183,14 @@ function generateRegistrationPin() {
  */
 function getEmployerTelegramIds() {
   const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.SETTINGS);
-  const col = getSettingsColumnIndex('PRACODAWCY_TELEGRAM_IDS');
-  if (col === -1) return [];
+  const header = _findHeaderCell(sheet, 'PRACODAWCY_TELEGRAM_IDS');
+  if (!header) return [];
 
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
+  const rowCount = lastRow - header.row;
+  if (rowCount < 1) return [];
 
-  const values = sheet.getRange(2, col, lastRow - 1, 1).getValues().map(function (r) { return r[0]; });
+  const values = sheet.getRange(header.row + 1, header.col, rowCount, 1).getValues().map(function (r) { return r[0]; });
   return parseEmployerTelegramIds(values);
 }
 

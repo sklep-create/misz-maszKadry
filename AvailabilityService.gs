@@ -256,6 +256,101 @@ function isMonthSelectable(monthValue) {
   });
 }
 
+/**
+ * Podstawowy wymiar urlopu wypoczynkowego wg stażu pracy (Art. 154 §1 KP,
+ * "Wymiar urlopu" w Podstawach prawnych - celowo BEZ Klucza tam, bo to
+ * wartość dwuwariantowa "20/26", nie jedna liczba do automatycznego odczytu -
+ * patrz getPodstawaPrawnaNumber() w Config.gs). Do stażu wlicza się okresy
+ * nauki (Art. 155 KP) - to już uwzględnione w samej wartości Staz_Pracy_Lata.
+ */
+function getUrlopBazowyDni(stazPracyLata) {
+  return (Number(stazPracyLata) || 0) >= 10 ? 26 : 20;
+}
+
+/**
+ * Dodatkowy urlop OzN Umiarkowany/Znaczny (Art. 19 ust. 1 ustawy o
+ * rehabilitacji zawodowej), domyślnie 10 dni. Priorytet: "Podstawy prawne"
+ * (Klucz DODATKOWY_URLOP_OZN) -> domyślne 10.
+ */
+function getDodatkowyUrlopOznDni() {
+  const fromLaw = getPodstawaPrawnaNumber('DODATKOWY_URLOP_OZN');
+  if (fromLaw) return fromLaw;
+  return 10;
+}
+
+/**
+ * Suma_Urlopów pracownika: podstawowy wymiar wg stażu (20/26) + dodatkowe 10
+ * dni dla OzN Umiarkowany/Znaczny (Lekki/Brak nie dostają bonusu - Art. 19
+ * ust. 1 ustawy o rehabilitacji dotyczy WYŁĄCZNIE tych dwóch stopni).
+ */
+function calculateSumaUrlopow(stazPracyLata, stopienOzn) {
+  const ozn = (stopienOzn || '').toString().trim();
+  const oznBonus = (ozn === 'Umiarkowany' || ozn === 'Znaczny') ? getDodatkowyUrlopOznDni() : 0;
+  return getUrlopBazowyDni(stazPracyLata) + oznBonus;
+}
+
+/**
+ * Przelicza i nadpisuje Suma_Urlopów DLA WSZYSTKICH pracowników na podstawie
+ * ich aktualnego Staz_Pracy_Lata/Stopien_OZN - do jednorazowego uruchomienia
+ * z menu (np. po ręcznej zmianie stażu wielu osobom naraz, albo migracji
+ * danych). Bieżące, POJEDYNCZE zmiany są obsługiwane automatycznie przez
+ * onEditPracownicy() (patrz niżej), o ile zainstalowano trigger (⚙️ System
+ * Kadrowy → 🗄️ Baza danych → ⏰ Zainstaluj automatyczne przeliczanie Suma_Urlopów).
+ */
+function przeliczSumeUrlopowWszystkichPracownikow() {
+  const sheet = getSpreadsheet().getSheetByName(CONFIG.SHEETS.EMPLOYEES);
+  const data = sheet.getDataRange().getValues();
+  const col = getEmployeesColumnMap(sheet);
+  let updated = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const employeeId = (data[i][col['ID_Pracownika']] || '').toString();
+    if (!employeeId) continue;
+    sheet.getRange(i + 1, col['Suma_Urlopów'] + 1).setValue(
+      calculateSumaUrlopow(data[i][col['Staz_Pracy_Lata']], data[i][col['Stopien_OZN']])
+    );
+    updated++;
+  }
+
+  const msg = '✅ Przeliczono Suma_Urlopów dla ' + updated + ' pracowników (na podstawie Staz_Pracy_Lata/Stopien_OZN).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(msg);
+  } catch (e) {
+    // Brak kontekstu UI - wynik jest w Logger.log powyżej.
+  }
+  return msg;
+}
+
+/**
+ * Obsługa instalowalnego triggera onEdit (patrz
+ * zainstalujAutomatycznePrzeliczanieSumyUrlopow() w NarzedziaSerwisowe.gs):
+ * gdy ktoś ręcznie zmieni Stopien_OZN albo Staz_Pracy_Lata pracownika,
+ * Suma_Urlopów TEJ SAMEJ osoby jest automatycznie przeliczana. Kolumny
+ * znajdowane PO NAZWIE NAGŁÓWKA (getEmployeesColumnMap, Config.gs), nie po
+ * stałym numerze - wcześniejsze sztywne 6/8/11 rozjechały się, gdy ktoś ręcznie
+ * wstawił nową kolumnę (Data_Zatrudnienia) w arkuszu. Zapis do Suma_Urlopów
+ * sam wywołuje onEdit, ale warunek na kolumnę (tylko Stopien_OZN/Staz_Pracy_Lata)
+ * wyklucza pętlę.
+ */
+function onEditPracownicy(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  if (sheet.getName() !== CONFIG.SHEETS.EMPLOYEES) return;
+  if (e.range.getRow() === 1) return; // nagłówek
+
+  const editedCol = e.range.getColumn();
+  const col = getEmployeesColumnMap(sheet);
+  const oznCol = col['Stopien_OZN'] + 1;
+  const stazCol = col['Staz_Pracy_Lata'] + 1;
+  if (editedCol !== oznCol && editedCol !== stazCol) return;
+
+  const row = e.range.getRow();
+  const stopienOzn = sheet.getRange(row, oznCol).getValue();
+  const stazPracyLata = sheet.getRange(row, stazCol).getValue();
+  sheet.getRange(row, col['Suma_Urlopów'] + 1).setValue(calculateSumaUrlopow(stazPracyLata, stopienOzn));
+}
+
 /** Zwraca arkusz Dyspozycyjność, tworząc go (z nagłówkami), jeśli brakuje. */
 function getOrCreateAvailabilitySheet() {
   const ss = getSpreadsheet();

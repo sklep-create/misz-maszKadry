@@ -14,7 +14,13 @@ function checkMissingStartLogs() {
     const [empId, date, startTime, endTime] = scheduleData[i];
     const formattedDate = Utilities.formatDate(new Date(date), "CET", "yyyy-MM-dd");
 
-    if (formattedDate === todayStr && currentTimeStr >= startTime) {
+    // Puste startTime = dzień "Wolne"/"Urlop"/"Chorobowe" (nikt nie ma dzisiaj
+    // zaczynać pracy) - bez tego sprawdzenia "" porównane jako string zawsze
+    // wypada <= dowolnej godzinie ("12:00" >= "" to true w JS), co wysyłało
+    // fałszywe przypomnienia o braku STARTu w dni, gdy pracownik wcale nie
+    // miał pracować (błąd ujawniony przez rozszerzenie generatora Grafiku o
+    // urlopy/e-ZLA z Wniosków - teraz dużo więcej dni ma puste startTime).
+    if (formattedDate === todayStr && startTime && currentTimeStr >= startTime) {
       // Sprawdź czy pracownik kliknął dzisiaj START
       const hasStarted = timeLogs.some(log => log[1] === empId && Utilities.formatDate(new Date(log[2]), "CET", "yyyy-MM-dd") === todayStr && !!log[3]);
       
